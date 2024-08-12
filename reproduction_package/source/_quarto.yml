@@ -56,13 +56,23 @@ book:
   chapters:
     - index.qmd
     - 01-pre-processing.qmd
-    - 02-tables.qmd
-    - 03-figures.qmd
-    - A-online-appendix.qmd
-    - B-online-appendix.qmd
-    - C-online-appendix.qmd
-    - D-online-appendix.qmd
-    - E-online-appendix.qmd
+    - part: "Main Body"
+      chapters:
+        - 02-tables.qmd
+        - 03-figures.qmd
+    - part: "Appendix"
+      chapters:
+        - 04-appendix-A.qmd
+        - 05-appendix-B.qmd
+        - 06-appendix-C.qmd
+        - 07-appendix-D.qmd
+    - part: "Online Appendix"
+      chapters:
+        - A-online-appendix.qmd
+        - B-online-appendix.qmd
+        - C-online-appendix.qmd
+        - D-online-appendix.qmd
+        - E-online-appendix.qmd
     - X-references.qmd
   appendices:
     - X-session-info.qmd

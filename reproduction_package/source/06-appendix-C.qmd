@@ -1,0 +1,71 @@
+# Appendix C
+
+## Setup
+
+### Install Packages
+
+We install the following packages using the `groundhog` package manager to increase computational reproducibility.
+
+```{r install_packages}
+#| output: false
+
+options(repos = c(CRAN = "https://cran.r-project.org")) 
+
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+    library("groundhog")
+}
+
+pkgs <- c("magrittr", "data.table", "stringr", "Rmisc", "ggplot2")
+
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2023-09-25")
+```
+
+### Read Data
+
+```{r read_data}
+data      <- readRDS(file="../data/processed/full.Rda")
+timeSpent <- data.table::fread(file = "../data/raw/PageTimes-2021-09-15.csv")
+raw       <- data.table::fread(file="../data/raw/all_apps_wide_2021-09-15.csv")
+```
+
+### Design
+
+We define some design features in the following:
+
+```{r design_features}
+
+colors <- c("#F3B05C", "#1E4A75", "#65B5C0", "#AD5E21")
+
+layout <- theme(panel.background = element_rect(fill = "white"),
+                legend.key = element_rect(fill = "white"),
+                panel.grid.major.y = element_line(colour = "grey", 
+                                                  linewidth = 0.25),
+                axis.ticks.y = element_blank(),
+                panel.grid.major.x = element_blank(),
+                axis.line.x.bottom = element_line(colour = "#000000", 
+                                                  linewidth = 0.5),
+                axis.line.y.left = element_blank(),
+                plot.title = element_text(size = rel(1))
+)
+
+```
+
+
+We examine the heterogeneous effects by estimating a triple interaction effect regression:
+
+$$
+\begin{aligned}
+y_{it} = &\ \alpha_{\text{baseline}} + \sum_{\text{treat}} \alpha_{\text{treat}} \text{treat}_i + \beta_{\text{baseline}} \text{part2}_t + \sum_{\text{treat}} \beta_{\text{treat}} \text{treat}_i \times \text{part2}_t \\
+&\ + \theta_{\text{baseline}} (D_i \times \text{part2}_t) + \sum_{\text{treat}} \theta_{\text{treat}} (D_i \times \text{treat}_i \times \text{part2}_t) \\
+&\ + \delta_{\text{baseline}} D_i + \sum_{\text{treat}} \delta_{\text{treat}} (D_i \times \text{treat}_i) + \gamma X_i + \epsilon_{it}
+\end{aligned}
+$$
+
+The `figure C.1a` displays the estimators $\beta_{treat}$ and $\theta_{treat}$. The triple interaction effects $\theta_{treat}$ are labelled with education DDD, temperature DDD, forecast usage DDD, credible DDD, accurate DDD, and female DDD in this case. The double interaction effects $\beta_{treat}$ are labelled with lower education, lower temperature, less forecast usage, less credible, less accurate, and not female in this case. For example, to determine the total treatment effect for female on $b$ , one must add the estimators $\beta_{treat}$ ($b$ (not female)) and $\delta_{treat}$ ($b$ (female DDD)). The same principle can be applied to the other two figures.
+
+In `figure C.1a`, we pool across the different information treatments (interval, best guess, both) and only consider the heterogeneous effect of contradiction vs. confirmation. _treat_ refers to contradiction while confirmation is used as the baseline.
+
+In `figure C.1b and C.1c`, we test the heterogeneous effects of the different information treatments (interval, best guess, both) separately for confirmation and contradiction treatment arms. The best guess information treatment serves as the baseline and _treat_ refers to the information treatments interval or both.
+

@@ -1,0 +1,218 @@
+# Appendix D
+
+## Setup
+
+### Install Packages
+
+We install the following packages using the `groundhog` package manager to increase computational reproducibility.
+
+```{r install_packages}
+#| output: false
+
+options(repos = c(CRAN = "https://cran.r-project.org")) 
+
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+    library("groundhog")
+}
+
+pkgs <- c("magrittr", "data.table", "ggplot2", "ggsignif")
+
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2023-09-25")
+```
+
+### Read Data
+
+```{r read_data}
+data      <- readRDS(file="../data/processed/full.Rda")
+```
+
+### Design
+
+We define some design features in the following:
+
+```{r design_features}
+
+colors <- c("#F3B05C", "#1E4A75", "#65B5C0", "#AD5E21")
+
+layout <- theme(panel.background = element_rect(fill = "white"),
+                legend.key = element_rect(fill = "white"),
+                panel.grid.major.y = element_line(colour = "grey", 
+                                                  linewidth = 0.25),
+                axis.ticks.y = element_blank(),
+                panel.grid.major.x = element_blank(),
+                axis.line.x.bottom = element_line(colour = "#000000", 
+                                                  linewidth = 0.5),
+                axis.line.y.left = element_blank(),
+                plot.title = element_text(size = rel(1))
+)
+
+```
+
+
+## Figure a
+
+```{r}
+#| label: fig-Da
+#| fig-cap: "Credibility, confirmation compared to contradiction"
+wilcox_test <- wilcox.test(formula = credibility ~ surprise, 
+                           data = data[treated == 1])
+
+p_value <- wilcox_test$p.value
+p_value_text <- ifelse(p_value < 0.01, "***", ifelse(p_value < 0.05, "**", ifelse(p_value < 0.10, "*", "ns")))
+formatted_p_value <- format(x = p_value, digits = 3, scientific = TRUE)
+
+ggplot(data = data[treated == 1],
+       mapping = aes(y = credibility,
+                     x = surprise)) +
+  geom_bar(stat = "summary", 
+           fun = mean,
+           fill = colors[2]) +
+  scale_y_continuous(limits = c(0, 4),
+                     expand = c(0, NA)) +
+  geom_signif(comparisons = list(c("FALSE", "TRUE")),
+              annotations = paste0(formatted_p_value, " (", p_value_text, ")"),
+              y_position = 3.5,
+              tip_length = 0,
+              size = 0.5) +
+  labs(x = "Contradiction",
+       y = "Credibility") +
+  layout
+```
+
+## Figure c
+
+```{r}
+#| label: fig-Dc
+#| fig-cap: "Credibility, confirmation treatments"
+comparisons <- list(c("point", "interval"), 
+                    c("point", "both"), 
+                    c("interval", "both"))
+
+p_values <- sapply(comparisons, function(comp) {
+  test <- wilcox.test(formula = credibility ~ communication, 
+                      data = data[treated == 1 & surprise == FALSE & communication %in% comp])
+  test$p.value
+})
+
+p_values_text <- sapply(p_values, function(p) {
+  ifelse(p < 0.01, "***", ifelse(p < 0.05, "**", ifelse(p < 0.10, "*", "ns")))
+})
+
+formatted_p_values <- format(x = p_values, digits = 3, scientific = TRUE)
+
+ggplot(data = data[treated == 1 & surprise == FALSE],
+       mapping = aes(y = credibility,
+                     x = communication)) +
+  geom_bar(stat = "summary", 
+           fun = mean,
+           fill = colors[2]) +
+  scale_y_continuous(limits = c(0, 4),
+                     expand = c(0, NA)) +
+  geom_signif(comparisons = comparisons,
+              annotations = paste0(formatted_p_values, " (", p_values_text, ")"),
+              y_position = c(3.0, 3.3, 3.6),
+              tip_length = 0,
+              size = 0.5) +
+  labs(x = "Communication",
+       y = "Credibility") +
+  layout
+```
+
+## Figure e
+
+```{r}
+#| label: fig-De
+#| fig-cap: "Credibility, contradiction treatments"
+comparisons <- list(c("point", "interval"), 
+                    c("point", "both"), 
+                    c("interval", "both"))
+
+p_values <- sapply(comparisons, function(comp) {
+  test <- wilcox.test(formula = credibility ~ communication, 
+                      data = data[treated == 1 & surprise == TRUE & communication %in% comp])
+  test$p.value
+})
+
+p_values_text <- sapply(p_values, function(p) {
+  ifelse(p < 0.01, "***", ifelse(p < 0.05, "**", ifelse(p < 0.10, "*", "ns")))
+})
+
+formatted_p_values <- format(x = p_values, digits = 3, scientific = TRUE)
+
+ggplot(data = data[treated == 1 & surprise == TRUE],
+       mapping = aes(y = credibility,
+                     x = communication)) +
+  geom_bar(stat = "summary", 
+           fun = mean,
+           fill = colors[2]) +
+  scale_y_continuous(limits = c(0, 4),
+                     expand = c(0, NA)) +
+  geom_signif(comparisons = comparisons,
+              annotations = paste0(formatted_p_values, " (", p_values_text, ")"),
+              y_position = c(3.0, 3.3, 3.6),
+              tip_length = 0,
+              size = 0.5) +
+  labs(x = "Communication",
+       y = "Credibility") +
+  layout
+```
+
+## Figure b
+
+```{r}
+#| label: fig-Db
+#| fig-cap: "Credibility, confirmation compared to contradiction (density)"
+ggplot(data = data[treated == 1],
+       mapping = aes(x = credibility, fill = surprise)) +
+  geom_histogram(aes(y = after_stat(density)), 
+                 alpha = 0.66,
+                 position = "identity", 
+                 binwidth = 1, 
+                 color = "black") +
+  scale_y_continuous(limits = c(0, 0.5),
+                     expand = c(0, NA)) +
+  labs(x = "Credibility",
+       y = "Density") +
+  layout
+```
+
+## Figure d
+
+```{r}
+#| label: fig-Dd
+#| fig-cap: "Credibility, confirmation treatments (density)"
+ggplot(data = data[treated == 1 & surprise == FALSE],
+       mapping = aes(x = credibility, fill = communication)) +
+  geom_histogram(aes(y = after_stat(density)), 
+                 alpha = 0.66,
+                 position = "identity", 
+                 binwidth = 1, 
+                 color = "black") +
+  scale_y_continuous(limits = c(0, 0.5),
+                     expand = c(0, NA)) +
+  labs(x = "Credibility",
+       y = "Density") +
+  layout
+```
+
+
+## Figure f
+
+```{r}
+#| label: fig-Df
+#| fig-cap: "Credibility, contradiction treatments"
+ggplot(data = data[treated == 1 & surprise == TRUE],
+       mapping = aes(x = credibility, fill = communication)) +
+  geom_histogram(aes(y = after_stat(density)), 
+                 alpha = 0.66,
+                 position = "identity", 
+                 binwidth = 1, 
+                 color = "black") +
+  scale_y_continuous(limits = c(0, 0.5),
+                     expand = c(0, NA)) +
+  labs(x = "Credibility",
+       y = "Density") +
+  layout
+```

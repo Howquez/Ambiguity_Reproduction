@@ -1,5 +1,7 @@
 # Pre-Processing
 
+<!-- git subtree push --prefix reproduction_package/rendered_documents origin gh-pages -->
+
 This document explains how to process the raw data into a tidy format. We assume familiarity with our paper _(Ambiguity attitudes and surprises)_ and recommend to also read @Baillon_2018a to better understand the method we apply in this document.
 
 ## Install Packages
@@ -243,7 +245,8 @@ self_report_selection <- self_reports[, .(participant.label,
                                           high_general_risk,
                                           high_weather_risk,
                                           high_accuracy,
-                                          high_credibility)]
+                                          high_credibility, 
+                                          credibility)]
 ```
 
 ```{r display_self_reports}

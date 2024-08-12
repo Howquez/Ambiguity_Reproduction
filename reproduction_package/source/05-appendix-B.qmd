@@ -1,0 +1,472 @@
+# Appendix B
+
+## Setup
+
+### Install Packages
+
+We install the following packages using the `groundhog` package manager to increase computational reproducibility.
+
+```{r install_packages}
+#| output: false
+
+options(repos = c(CRAN = "https://cran.r-project.org")) 
+
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+    library("groundhog")
+}
+
+pkgs <- c("magrittr", "data.table", "stringr", "Rmisc", "ggplot2",
+          "lmtest", "sandwich", "stargazer")
+
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2023-09-25")
+```
+
+### Read Data
+
+```{r read_data}
+data      <- readRDS(file="../data/processed/full.Rda")
+timeSpent <- data.table::fread(file = "../data/raw/PageTimes-2021-09-15.csv")
+raw       <- data.table::fread(file="../data/raw/all_apps_wide_2021-09-15.csv")
+```
+
+## Table B.1
+
+```{r tbl-B.1}
+#| results: asis
+#| label: tbl-B.1
+#| tbl-cap: "Linear regressions: Treatment effects on E1"
+
+ols_1 <- lm(formula = E1 ~ surprise + treated + surprise * treated,
+              data = data)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~data$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = E1 ~ communication + treated + communication * treated, 
+              data = data,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = data[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = E1 ~ communication + treated + communication * treated, 
+              data = data,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = data[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = E1 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = data[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = E1 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = data[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = E1 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = data[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on E1",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+## Table B.2
+
+```{r tbl-B.2}
+#| results: asis
+#| label: tbl-B.2
+#| tbl-cap: "Linear regressions: Treatment effects on E2"
+
+ols_1 <- lm(formula = E2 ~ surprise + treated + surprise * treated,
+              data = data)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~data$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = E2 ~ communication + treated + communication * treated, 
+              data = data,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = data[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = E2 ~ communication + treated + communication * treated, 
+              data = data,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = data[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = E2 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = data[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = E2 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = data[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = E2 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = data[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on E2",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+## Table B.3
+
+```{r tbl-B.3}
+#| results: asis
+#| label: tbl-B.3
+#| tbl-cap: "Linear regressions: Treatment effects on E3"
+
+ols_1 <- lm(formula = E3 ~ surprise + treated + surprise * treated,
+              data = data)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~data$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = E3 ~ communication + treated + communication * treated, 
+              data = data,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = data[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = E3 ~ communication + treated + communication * treated, 
+              data = data,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = data[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = E3 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = data[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = E3 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = data[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = E3 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = data[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on E3",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+## Table B.4
+
+```{r tbl-B.4}
+#| results: asis
+#| label: tbl-B.4
+#| tbl-cap: "Linear regressions: Treatment effects on E12"
+
+ols_1 <- lm(formula = E12 ~ surprise + treated + surprise * treated,
+              data = data)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~data$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = E12 ~ communication + treated + communication * treated, 
+              data = data,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = data[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = E12 ~ communication + treated + communication * treated, 
+              data = data,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = data[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = E12 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = data[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = E12 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = data[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = E12 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = data[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on E12",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+## Table B.5
+
+```{r tbl-B.5}
+#| results: asis
+#| label: tbl-B.5
+#| tbl-cap: "Linear regressions: Treatment effects on E5"
+
+ols_1 <- lm(formula = E13 ~ surprise + treated + surprise * treated,
+              data = data)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~data$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = E13 ~ communication + treated + communication * treated, 
+              data = data,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = data[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = E13 ~ communication + treated + communication * treated, 
+              data = data,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = data[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = E13 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = data[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = E13 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = data[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = E13 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = data[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on E13",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+## Table B.6
+
+```{r tbl-B.6}
+#| results: asis
+#| label: tbl-B.6
+#| tbl-cap: "Linear regressions: Treatment effects on E23"
+
+ols_1 <- lm(formula = E23 ~ surprise + treated + surprise * treated,
+              data = data)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~data$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = E23 ~ communication + treated + communication * treated, 
+              data = data,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = data[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = E23 ~ communication + treated + communication * treated, 
+              data = data,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = data[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = E23 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = data[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = E23 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = data[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = E23 ~ surprise + treated + surprise * treated, 
+              data = data,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = data[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on E23",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+
