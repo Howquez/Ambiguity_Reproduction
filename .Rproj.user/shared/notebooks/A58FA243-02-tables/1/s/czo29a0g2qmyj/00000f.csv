@@ -1,0 +1,2 @@
+"0","data[, communication := as.factor(communication)]"
+"0","data[, communication := factor(communication, levels = c(""point"", ""interval"", ""both""))]"

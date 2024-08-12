@@ -1,0 +1,2 @@
+"0","# data <- data.table::fread(file = ""../data/processed/full.csv"")"
+"0","data <- readRDS(file=""../data/processed/full.Rda"")"

@@ -1,0 +1,2 @@
+"0","# alternatively:"
+"0","data[, .(N = length(unique(participant.label))), by = c(""communication"", ""surprise"")][order(surprise, communication)]"

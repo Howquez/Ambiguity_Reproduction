@@ -1,0 +1,8 @@
+"0","cols <- str_subset(string = names(data), pattern = ""E\\d+"")"
+"0","data[, "
+"0","     str_replace_all(string = cols, pattern = ""^E"", replacement = ""m"") := lapply(.SD, function(x) x / 100), "
+"0","     .SDcols = cols] "
+"0",""
+"0","data[, p1 := 0.5 + (m1 - m23)/ (6*(mc-ms))]"
+"0","data[, p2 := 0.5 + (m2 - m13)/ (6*(mc-ms))]"
+"0","data[, p3 := 0.5 + (m3 - m12)/ (6*(mc-ms))]"

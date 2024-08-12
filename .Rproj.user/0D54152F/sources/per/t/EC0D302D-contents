@@ -1,0 +1,697 @@
+# Online Appendix D
+
+## Setup
+
+### Install Packages
+
+We install the following packages using the `groundhog` package manager to increase computational reproducibility.
+
+```{r install_packages}
+#| output: false
+
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+    library("groundhog")
+}
+
+pkgs <- c("magrittr", "data.table", "stringr", "Rmisc", "ggplot2", "patchwork",
+          "rstatix", "ggpubr", "glue", "lubridate", "plyr", 
+          "lmtest", "sandwich", "stargazer" # packages for regression tables
+          )
+
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2023-09-25")
+```
+
+### Read Data
+
+```{r read_data}
+# data <- data.table::fread(file = "../data/processed/full.csv")
+data <- readRDS(file="../data/processed/full.Rda")
+```
+
+### Manipulate Data
+
+`[Shall we add this code chunk to the pre-processing?]`
+
+```{r factorize}
+data[, communication := as.factor(communication)]
+data[, communication := factor(communication, levels = c("point", "both","interval"))]
+data[, stage := as.factor(stage)]
+data[, stage := factor(stage, levels = c("1", "2"))]
+```
+
+
+### Design
+
+We define some design features in the following:
+
+```{r design_features}
+
+colors <- c("#F3B05C", "#1E4A75", "#65B5C0", "#AD5E21")
+
+layout <- theme(panel.background = element_rect(fill = "white"),
+                legend.key = element_rect(fill = "white"),
+                panel.grid.major.y = element_line(colour = "grey", 
+                                                  linewidth = 0.25),
+                axis.ticks.y = element_blank(),
+                panel.grid.major.x = element_blank(),
+                axis.line.x.bottom = element_line(colour = "#000000", 
+                                                  linewidth = 0.5),
+                axis.line.y.left = element_blank(),
+                plot.title = element_text(size = rel(1))
+)
+
+```
+
+
+## Subsample 1: Good comprehension (yes or rather yes)
+
+```{r comprehension_exclusion_1}
+ex_1_N <- data[stage == 1 & str_detect(string = comprehension, pattern = "yes", negate = TRUE), .N]
+```
+
+We perceive the tasks as cognitively demanding for the experimental participants. Not understanding the tasks could have led to additional noise in the data set. To exclude this as a factor influencing our results, we excluded participants who self-reported not understanding the experiment well or rather well. In the process, we excluded `r ex_1_N` participants for this robustness check.
+
+```{r}
+#| results: asis
+#| label: tbl-OD1
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+tmp <- data[str_detect(string = comprehension, pattern = "yes", negate = FALSE)]
+
+ols_1 <- lm(formula = b ~ surprise + treated + surprise * treated,
+              data = tmp)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~tmp$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = tmp[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = tmp[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = tmp[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = tmp[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = tmp[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on b",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+```{r}
+#| results: asis
+#| label: tbl-OD2
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+ols_1 <- lm(formula = a ~ surprise + treated + surprise * treated,
+              data = tmp)
+se_1  <- coeftest(x = ols_1, 
+                  vcov = vcovCL(ols_1,
+                                cluster = ~tmp$participant.label,
+                                type = "HC1"))
+
+ols_2 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == FALSE))
+se_2  <- coeftest(x = ols_2, 
+                  vcov = vcovCL(ols_2,
+                                cluster = tmp[surprise == FALSE, participant.label],
+                                type = "HC1"))
+
+ols_3 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == TRUE))
+se_3  <- coeftest(x = ols_3, 
+                  vcov = vcovCL(ols_3,
+                                cluster = tmp[surprise == TRUE, participant.label],
+                                type = "HC1"))
+
+ols_4 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "point"))
+se_4  <- coeftest(x = ols_4, 
+                  vcov = vcovCL(ols_4,
+                                cluster = tmp[communication == "point", participant.label],
+                                type = "HC1"))
+
+ols_5 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "interval"))
+se_5  <- coeftest(x = ols_5, 
+                  vcov = vcovCL(ols_5,
+                                cluster = tmp[communication == "interval", participant.label],
+                                type = "HC1"))
+
+ols_6 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "both"))
+se_6  <- coeftest(x = ols_6, 
+                  vcov = vcovCL(ols_6,
+                                cluster = tmp[communication == "both", participant.label],
+                                type = "HC1"))
+
+
+
+se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+
+stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+          align = TRUE, 
+          se = se, 
+          p = p,   
+          title = "Linear regressions: Treatment effects on a",
+          model.names = FALSE,
+          column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE,
+          style = "qje")
+  
+rm(tmp)
+```
+
+
+## Subsample 2: No wrong answers in the control questions
+
+```{r comprehension_exclusion_2}
+ex_2_N <- data[, length(unique(participant.label))] - data[wrong_answer_1==0 & wrong_answer_2==0, length(unique(participant.label))]
+```
+
+Using a similar rationale as in subsample 1, we excluded participants who had at least one error
+in the control questions. In doing so, we removed `r ex_2_N` participants. Apart from the different exclusion criterion, the code producing the corresponding tables looks exactly the same.
+
+```{r}
+#| results: asis
+#| label: tbl-OD3
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+tmp <- data[wrong_answer_1==0 & wrong_answer_2==0]
+
+ols_1 <- lm(formula = b ~ surprise + treated + surprise * treated,
+              data = tmp)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~tmp$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = tmp[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = tmp[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = tmp[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = tmp[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = tmp[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on b",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+```{r}
+#| results: asis
+#| label: tbl-OD4
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+ols_1 <- lm(formula = a ~ surprise + treated + surprise * treated,
+              data = tmp)
+se_1  <- coeftest(x = ols_1, 
+                  vcov = vcovCL(ols_1,
+                                cluster = ~tmp$participant.label,
+                                type = "HC1"))
+
+ols_2 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == FALSE))
+se_2  <- coeftest(x = ols_2, 
+                  vcov = vcovCL(ols_2,
+                                cluster = tmp[surprise == FALSE, participant.label],
+                                type = "HC1"))
+
+ols_3 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == TRUE))
+se_3  <- coeftest(x = ols_3, 
+                  vcov = vcovCL(ols_3,
+                                cluster = tmp[surprise == TRUE, participant.label],
+                                type = "HC1"))
+
+ols_4 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "point"))
+se_4  <- coeftest(x = ols_4, 
+                  vcov = vcovCL(ols_4,
+                                cluster = tmp[communication == "point", participant.label],
+                                type = "HC1"))
+
+ols_5 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "interval"))
+se_5  <- coeftest(x = ols_5, 
+                  vcov = vcovCL(ols_5,
+                                cluster = tmp[communication == "interval", participant.label],
+                                type = "HC1"))
+
+ols_6 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "both"))
+se_6  <- coeftest(x = ols_6, 
+                  vcov = vcovCL(ols_6,
+                                cluster = tmp[communication == "both", participant.label],
+                                type = "HC1"))
+
+
+
+se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+
+stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+          align = TRUE, 
+          se = se, 
+          p = p,   
+          title = "Linear regressions: Treatment effects on a",
+          model.names = FALSE,
+          column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE,
+          style = "qje")
+  
+rm(tmp)
+```
+
+
+## Subsample 3: Survey experiment completion time 10%-90% quantile
+
+```{r}
+lo_quantile <- data[, quantile(x = completion_time, probs = 0.1)]
+hi_quantile <- data[, quantile(x = completion_time, probs = 0.9)]
+
+lo_time <- seconds_to_period(lo_quantile)
+hi_time <- seconds_to_period(hi_quantile)
+
+ex_3_N <- data[, length(unique(participant.label))] - data[completion_time > lo_quantile & completion_time < hi_quantile, length(unique(participant.label))]
+```
+
+
+We believe that excessively fast participants could introduce additional noise. We also believe that participants doing other things on the side and who may have been very slow in the experiment could cause a similar effect. As a result, we removed participants who took less than `r lo_time@minute` minutes `r lo_time@.Data` (10 percent quantile) and more than `r hi_time@minute` minutes `r hi_time@.Data` seconds (90 percent quantile). This is equivalent to a removal of `r ex_3_N` participants.
+
+Apart from the different exclusion criterion, the code producing the corresponding tables looks exactly the same.
+
+```{r}
+#| results: asis
+#| label: tbl-OD5
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+tmp <- data[completion_time > lo_quantile & completion_time < hi_quantile]
+
+ols_1 <- lm(formula = b ~ surprise + treated + surprise * treated,
+              data = tmp)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~tmp$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = tmp[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = tmp[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = tmp[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = tmp[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = tmp[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on b",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+```{r}
+#| results: asis
+#| label: tbl-OD6
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+ols_1 <- lm(formula = a ~ surprise + treated + surprise * treated,
+              data = tmp)
+se_1  <- coeftest(x = ols_1, 
+                  vcov = vcovCL(ols_1,
+                                cluster = ~tmp$participant.label,
+                                type = "HC1"))
+
+ols_2 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == FALSE))
+se_2  <- coeftest(x = ols_2, 
+                  vcov = vcovCL(ols_2,
+                                cluster = tmp[surprise == FALSE, participant.label],
+                                type = "HC1"))
+
+ols_3 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == TRUE))
+se_3  <- coeftest(x = ols_3, 
+                  vcov = vcovCL(ols_3,
+                                cluster = tmp[surprise == TRUE, participant.label],
+                                type = "HC1"))
+
+ols_4 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "point"))
+se_4  <- coeftest(x = ols_4, 
+                  vcov = vcovCL(ols_4,
+                                cluster = tmp[communication == "point", participant.label],
+                                type = "HC1"))
+
+ols_5 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "interval"))
+se_5  <- coeftest(x = ols_5, 
+                  vcov = vcovCL(ols_5,
+                                cluster = tmp[communication == "interval", participant.label],
+                                type = "HC1"))
+
+ols_6 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "both"))
+se_6  <- coeftest(x = ols_6, 
+                  vcov = vcovCL(ols_6,
+                                cluster = tmp[communication == "both", participant.label],
+                                type = "HC1"))
+
+
+
+se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+
+stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+          align = TRUE, 
+          se = se, 
+          p = p,   
+          title = "Linear regressions: Treatment effects on a",
+          model.names = FALSE,
+          column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE,
+          style = "qje")
+  
+rm(tmp)
+```
+
+
+## Subsample 4: Weakly monotonic answers $(\overline{m_s}\leq\overline{m_c})$
+
+```{r}
+violators <- data[mc < ms, unique(participant.label)]
+```
+
+In this subsample, we removed participants who violated weak monotonicity for the averaged
+single vs. combined events ($\overline{m_s}\leq\overline{m_c}$) at least once (either part 1 or part 2). This ensures that index $a$ is 1 or less than 1. @Baillon_2018a also use this robustness check. We excluded `r length(violators)` participants.
+
+Apart from the different exclusion criterion, the code producing the corresponding tables looks exactly the same.
+
+```{r}
+#| results: asis
+#| label: tbl-OD7
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+tmp <- data[!(participant.label %in% violators)]
+
+ols_1 <- lm(formula = b ~ surprise + treated + surprise * treated,
+              data = tmp)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~tmp$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = tmp[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = tmp[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = tmp[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = tmp[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = tmp[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on b",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+```{r}
+#| results: asis
+#| label: tbl-OD8
+
+ols_1 <- lm(formula = a ~ surprise + treated + surprise * treated,
+              data = tmp)
+se_1  <- coeftest(x = ols_1, 
+                  vcov = vcovCL(ols_1,
+                                cluster = ~tmp$participant.label,
+                                type = "HC1"))
+
+ols_2 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == FALSE))
+se_2  <- coeftest(x = ols_2, 
+                  vcov = vcovCL(ols_2,
+                                cluster = tmp[surprise == FALSE, participant.label],
+                                type = "HC1"))
+
+ols_3 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == TRUE))
+se_3  <- coeftest(x = ols_3, 
+                  vcov = vcovCL(ols_3,
+                                cluster = tmp[surprise == TRUE, participant.label],
+                                type = "HC1"))
+
+ols_4 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "point"))
+se_4  <- coeftest(x = ols_4, 
+                  vcov = vcovCL(ols_4,
+                                cluster = tmp[communication == "point", participant.label],
+                                type = "HC1"))
+
+ols_5 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "interval"))
+se_5  <- coeftest(x = ols_5, 
+                  vcov = vcovCL(ols_5,
+                                cluster = tmp[communication == "interval", participant.label],
+                                type = "HC1"))
+
+ols_6 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "both"))
+se_6  <- coeftest(x = ols_6, 
+                  vcov = vcovCL(ols_6,
+                                cluster = tmp[communication == "both", participant.label],
+                                type = "HC1"))
+
+
+
+se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+
+stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+          align = TRUE, 
+          se = se, 
+          p = p,   
+          title = "Linear regressions: Treatment effects on a",
+          model.names = FALSE,
+          column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE,
+          style = "qje")
+  
+rm(tmp)
+```

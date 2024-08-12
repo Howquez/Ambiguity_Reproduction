@@ -1,0 +1,36 @@
+"0","#| output: false"
+"0",""
+"0","options(repos = c(CRAN = ""https://cran.r-project.org"")) "
+"0",""
+"0",""
+"0","if (!requireNamespace(""groundhog"", quietly = TRUE)) {"
+"0","    install.packages(""groundhog"")"
+"0","    library(""groundhog"")"
+"0","}"
+"0",""
+"0","pkgs <- c(""magrittr"", ""data.table"", ""stringr"", ""lubridate"", ""knitr"", "
+"0","          ""sandwich"", ""lmtest"","
+"0","          ""sjPlot"", ""stargazer"")"
+"0",""
+"0","groundhog::groundhog.library(pkg = pkgs,"
+"0","                             date = ""2023-09-25"")"
+"2","Install package ""strengejacke"" from GitHub (`devtools::install_github(""strengejacke/strengejacke"")`) to load all sj-packages at once!
+"
+"2","[36mHad already  attached 'magrittr_2.0.3'[0m
+"
+"2","[36mHad already  attached 'data.table_1.14.8'[0m
+"
+"2","[36mHad already  attached 'stringr_1.5.0'[0m
+"
+"2","[36mHad already  attached 'lubridate_1.9.2'[0m
+"
+"2","[36mSuccessfully attached 'knitr_1.44'[0m
+"
+"2","[36mHad already  attached 'sandwich_3.0-2'[0m
+"
+"2","[36mHad already  attached 'lmtest_0.9-40'[0m
+"
+"2","[36mSuccessfully attached 'sjPlot_2.8.15'[0m
+"
+"2","[36mHad already  attached 'stargazer_5.2.3'[0m
+"

@@ -1,0 +1,3 @@
+"0","demographics <- c(""age_35_52"",""age_53_plus"",""female"", ""high_education"", ""high_income"", ""married"", ""parentship"")"
+"0",""
+"0","all <- c(demographics, ""high_temperature"",""high_usage"",""high_general_risk"",""high_weather_risk"",""high_accuracy"",""high_credibility"")"

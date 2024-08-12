@@ -1,0 +1,173 @@
+{
+    "sources": [
+        {
+            "DOI": "10.1093/comjnl/27.2.97",
+            "ISSN": "0010-4620",
+            "URL": "https://doi.org/10.1093/comjnl/27.2.97",
+            "author": [
+                {
+                    "family": "Knuth",
+                    "given": "Donald E."
+                }
+            ],
+            "container-title": "Comput. J.",
+            "id": "Knuth_1984",
+            "issue": "2",
+            "issued": {
+                "date-parts": [
+                    [
+                        1984,
+                        5
+                    ]
+                ]
+            },
+            "page": "97-111",
+            "publisher": "Oxford University Press, Inc.",
+            "publisher-place": "USA",
+            "title": "Literate programming",
+            "type": "article-journal",
+            "volume": "27"
+        },
+        {
+            "DOI": "10.3982/ECTA14370",
+            "URL": "https://onlinelibrary.wiley.com/doi/abs/10.3982/ECTA14370",
+            "abstract": "Measurements of ambiguity attitudes have so far focused on artificial events, where (subjective) beliefs can be derived from symmetry of events and can be then controlled for. For natural events as relevant in applications, such a symmetry and corresponding control are usually absent, precluding traditional measurement methods. This paper introduces two indexes of ambiguity attitudes, one for aversion and the other for insensitivity/perception, for which we can control for likelihood beliefs even if these are unknown. Hence, we can now measure ambiguity attitudes for natural events. Our indexes are valid under many ambiguity theories, do not require expected utility for risk, and are easy to elicit in practice. We use our indexes to investigate time pressure under ambiguity. People do not become more ambiguity averse under time pressure but become more insensitive (perceive more ambiguity). These findings are plausible and, hence, support the validity of our indexes.",
+            "author": [
+                {
+                    "family": "Baillon",
+                    "given": "Aurélien"
+                },
+                {
+                    "family": "Huang",
+                    "given": "Zhenxing"
+                },
+                {
+                    "family": "Selim",
+                    "given": "Asli"
+                },
+                {
+                    "family": "Wakker",
+                    "given": "Peter P."
+                }
+            ],
+            "container-title": "Econometrica",
+            "id": "Baillon_2018a",
+            "issue": "5",
+            "issued": {
+                "date-parts": [
+                    [
+                        2018
+                    ]
+                ]
+            },
+            "keyword": "Ambiguity aversion, Ellsberg paradox, sources of uncertainty, time pressure",
+            "page": "1839-1858",
+            "title": "Measuring ambiguity attitudes for all (natural) events",
+            "type": "article-journal",
+            "volume": "86"
+        },
+        {
+            "DOI": "10.1016/j.jbef.2015.12.001",
+            "ISSN": "2214-6350",
+            "URL": "http://www.sciencedirect.com/science/article/pii/S2214635016000101",
+            "author": [
+                {
+                    "family": "Chen",
+                    "given": "Daniel L."
+                },
+                {
+                    "family": "Schonger",
+                    "given": "Martin"
+                },
+                {
+                    "family": "Wickens",
+                    "given": "Chris"
+                }
+            ],
+            "container-title": "Journal of Behavioral and Experimental Finance",
+            "id": "oTree",
+            "issued": {
+                "date-parts": [
+                    [
+                        2016
+                    ]
+                ]
+            },
+            "keyword": "Experimental economics, Software, Laboratory experiments, Field experiments, Online experiments, Classroom experiments",
+            "page": "88 - 97",
+            "title": "oTree-an open-source platform for laboratory, online, and field experiments",
+            "type": "article-journal",
+            "volume": "9"
+        },
+        {
+            "DOI": "10.3386/w25561",
+            "URL": "http://www.nber.org/papers/w25561",
+            "author": [
+                {
+                    "family": "Anantanasuwong",
+                    "given": "Kanin"
+                },
+                {
+                    "family": "Kouwenberg",
+                    "given": "Roy"
+                },
+                {
+                    "family": "Mitchell",
+                    "given": "Olivia S"
+                },
+                {
+                    "family": "Peijnenberg",
+                    "given": "Kim"
+                }
+            ],
+            "collection-title": "Working paper series",
+            "genre": "Working Paper",
+            "id": "AnantanasuwongEtAl_2019",
+            "issued": {
+                "date-parts": [
+                    [
+                        2019
+                    ]
+                ]
+            },
+            "number": "25561",
+            "publisher": "National Bureau of Economic Research",
+            "title": "Ambiguity attitudes about investments: Evidence from the field",
+            "title-short": "Ambiguity attitudes about investments",
+            "type": "report"
+        },
+        {
+            "DOI": "10.1007/s10683-018-9582-3",
+            "author": [
+                {
+                    "family": "Li",
+                    "given": "Chen"
+                },
+                {
+                    "family": "Turmunkh",
+                    "given": "Uyanga"
+                },
+                {
+                    "family": "Wakker",
+                    "given": "Peter P."
+                }
+            ],
+            "container-title": "Experimental Economics",
+            "id": "LiTurmunkhWakker_2019",
+            "issued": {
+                "date-parts": [
+                    [
+                        2019
+                    ]
+                ]
+            },
+            "page": "51-75",
+            "title": "Trust as a decision under ambiguity",
+            "type": "article-journal",
+            "volume": "22"
+        }
+    ],
+    "project_biblios": [
+        "references.bib"
+    ]
+}
