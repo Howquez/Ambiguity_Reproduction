@@ -1,0 +1,228 @@
+---
+title: 'Online Appendix A'
+subtitle: 'Ambiguity attitudes and surprises'
+author:
+- name: Aljoscha Minnich
+  email: aljoscha.minnich@uni-hamburg.de
+  orcid: 0000-0001-5224-0143
+  corresponding: false
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+- name: Hauke Roggenkamp
+  email: Hauke.Roggenkamp@unisg.ch
+  orcid: 0009-0005-5176-4718
+  corresponding: false
+  affiliations:
+    - name: Institute of Behavioral Science and Technology, University of St. Gallen
+      address: Torstrasse 25
+      city: St. Gallen
+      country: Switzerland
+      postal-code: 9000
+    - name: Faculty of Economics & Social Sciences, Helmut-Schmidt-University
+      address: Holstenhofweg 85
+      city: Hamburg
+      country: Germany
+      postal_code: 22043
+- name: Andreas Lange
+  email: andreas.lange@uni-hamburg.de
+  corresponding: true
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+date: now
+date-format: long
+format: 
+  html:
+    embed-resources: true
+    theme: cosmo
+    fig-height: 8
+toc: true
+---
+
+This document explains how to reproduce the figures presented in the paper.
+
+# Install Packages
+
+We install the following packages using the `groundhog` package manager to increase computational reproducibility.
+
+```{r install_packages}
+#| output: false
+
+options(repos = c(CRAN = "https://cran.r-project.org")) 
+
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+    library("groundhog")
+}
+
+pkgs <- c("magrittr", "data.table", "stringr", "Rmisc", "ggplot2")
+
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2023-09-25")
+```
+
+# Read Data
+
+```{r read_data}
+data      <- readRDS(file="../data/processed/full.Rda")
+timeSpent <- data.table::fread(file = "../data/raw/PageTimes-2021-09-15.csv")
+raw       <- data.table::fread(file="../data/raw/all_apps_wide_2021-09-15.csv")
+```
+
+
+# Figure OA1
+
+We define some design features in the following:
+
+```{r desing_features}
+
+colors <- c("#F3B05C", "#1E4A75", "#65B5C0", "#AD5E21")
+
+layout <- theme(panel.background = element_rect(fill = "white"),
+                legend.key = element_rect(fill = "white"),
+                panel.grid.major.y = element_line(colour = "grey", 
+                                                  linewidth = 0.25),
+                axis.ticks.y = element_blank(),
+                panel.grid.major.x = element_blank(),
+                axis.line.x.bottom = element_line(colour = "#000000", 
+                                                  linewidth = 0.5),
+                axis.line.y.left = element_blank(),
+                plot.title = element_text(size = rel(1))
+)
+
+```
+
+```{r fig_oa1}
+#| label: fig-OA1
+#| warning: false
+#| fig-cap: 'Average response time of the 12 ambiguity tasks of the full sample (1505 observations; outliers removed as described in the figure).'
+
+timeSpent[,
+          lag := shift(epoch_time_completed, fill = NA, type = "lag"),
+          by = c("session_code", "participant_code")]
+timeSpent[,
+          duration := epoch_time_completed - lag,
+          by = c("session_code", "participant_code")]
+timeSpent[,
+          completion := epoch_time_completed %>% max() - epoch_time_completed %>% min(),
+          by = c("session_code", "participant_code")]
+
+duration <- timeSpent[participant_code %in% data$participant.code,
+                      .(
+                        session_code,
+                        participant_code,
+                        app_name,
+                        page_name,
+                        page_index,
+                        page_submission = epoch_time_completed,
+                        time_spent = duration,
+                        completion_time = completion
+                      )]
+
+
+N <- duration[, participant_code %>% unique() %>% length()]
+
+tmp <- duration[app_name == "Baillon" & page_name == "Baillon_Decision",
+                 .(time_spent = time_spent %>% sum()),
+                 by = c("session_code", "participant_code", "page_index", "page_name")]
+
+tmp[, round := page_index-2, by = c("participant_code")]
+
+# remove outliers
+plotDT <- tmp[,
+               .SD[time_spent < quantile(time_spent, probs = 0.99)],
+               by = page_index]
+
+ggplot(data = summarySE(data = plotDT,
+                        measurevar = "time_spent",
+                        groupvars=c("round"),
+                        na.rm = FALSE,
+                        conf.interval = 0.95,
+                        .drop = TRUE),
+       mapping = aes(x = round, y = time_spent)) +
+  geom_hline(yintercept = 0) +
+  layout +
+  theme(legend.position="bottom") +
+  geom_line(show.legend=FALSE, color = colors[2], lty=2) +
+  geom_errorbar(aes(ymin=time_spent-ci, ymax=time_spent+ci), width=.25, alpha = 0.5, color = colors[3]) +
+  geom_point(color = colors[2]) +
+  scale_x_continuous(name="", breaks = 1:12) +
+  scale_y_continuous(limits = c(0, NA), expand = c(0, 0),
+                     breaks = c(0,
+                                plotDT[round == 1, time_spent %>% mean() %>% round(digits=0)],
+                                plotDT[round == 2, time_spent %>% mean() %>% round(digits=0)],
+                                plotDT[round == 7, time_spent %>% mean() %>% round(digits=0)],
+                                plotDT[round == 12, time_spent %>% mean() %>% round(digits=0)])) +
+  labs(y = "Response Time in Seconds", caption = "Bars indicate 95% confidence intervals.
+\nOutliers (identified by 99.0 quantile) removed.") +
+  theme(plot.margin = margin(0.25,1,0.25,0.25, "cm"),
+        axis.line.x.bottom = element_line(size = 0.25),
+        axis.line.y.left = element_line(size = 0.25),
+        panel.grid.major.y = element_line(colour="gray", size=0.25))
+
+rm(list = c("tmp", "timeSpent", "duration", "plotDT", "pkgs"))
+
+```
+
+# Figure OA.2
+
+```{r}
+#| label: fig-OA2a
+#| fig-cap: 'Dropout participants of the experiment by page number.'
+
+ggplot(data = raw[nchar(participant.label) == 32 & session.is_demo == 0 & participant._index_in_pages < 20],
+       aes(x=participant._index_in_pages)) + 
+  geom_hline(yintercept = 0) +
+  geom_histogram(binwidth = 1, 
+                 fill = colors[2])  +
+  scale_y_continuous(limits = c(0, NA), expand = c(0, 0)) +
+  # scale_y_log10(breaks=c(0, 1, 2, 3, 4, 5, 10, 100), expand = c(0, NA)) +
+  layout +
+  labs(x = "Pages") +
+  scale_x_continuous(breaks = c(2),
+                     labels = c("Instructions")) +
+  labs(y = "Count", x = "Pages")
+```
+
+```{r}
+#| label: fig-OA2b
+#| fig-cap: 'Dropout participants by treatment after introduction of the treatment.'
+
+raw[Intro.1.player.location == "Ilomantsi", 
+    conditions := paste0("contrad.-",
+                         str_replace_all(string = Intro.1.player.treatment, 
+                                         pattern = "_", 
+                                         replacement = " "))]
+
+raw[Intro.1.player.location == "Weiskirchen", 
+    conditions := paste0("conf.-",
+                         str_replace_all(string = Intro.1.player.treatment, 
+                                         pattern = "_", 
+                                         replacement = " "))]
+
+ggplot(raw[participant._index_in_pages > 8 & nchar(participant.label) == 32 & session.is_demo == 0 & participant._index_in_pages < 20],
+       aes(x  = conditions)) + 
+  geom_hline(yintercept = 0) +
+  geom_bar(fill = colors[2])  +
+  scale_y_continuous(limits = c(0, NA), expand = c(0, NA)) +
+  layout +
+  labs(x = "Treatments", y = "Count") 
+```
+

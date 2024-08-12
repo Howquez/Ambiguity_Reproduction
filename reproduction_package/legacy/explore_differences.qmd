@@ -1,0 +1,54 @@
+---
+title: "Untitled"
+format: html
+---
+
+# Install Packages
+
+We install the following packages using the `groundhog` package manager to increase computational reproducibility.
+
+```{r install_packages}
+#| output: false
+
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+    library("groundhog")
+}
+
+pkgs <- c("magrittr", "data.table", "stringr", "lubridate", "glue", "knitr")
+
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2023-09-25")
+```
+
+
+```{r read_data}
+hauke <- data.table::fread(file = "../data/processed/full.csv")
+load("~/dev/surveyUncertainty/analysis/aljoscha/ful.Rdata")
+```
+
+```{r factorize}
+hauke[, communication := as.factor(communication)]
+hauke[, communication := factor(communication, levels = c("point", "interval", "both"))]
+```
+
+```{r}
+aljoscha <- ful %>% data.table()
+```
+
+```{r}
+a <- aljoscha[, .(participant.label, stage = round, AA2, AA1)]
+h <- hauke[, .(participant.label, stage, a, b)]
+
+merge <- a[h, on = .(participant.label, stage)]
+setnames(merge, old = c("AA1", "AA2"), new = c("B", "A"))
+```
+
+```{r}
+merge[, diff_A := a - A]
+merge[, diff_B := b - B]
+
+merge[, sum(diff_A)]
+merge[, sum(diff_B)]
+```
+

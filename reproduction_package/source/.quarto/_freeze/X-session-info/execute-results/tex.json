@@ -1,0 +1,18 @@
+{
+  "hash": "f6e030fd84369c9385737606d0422f6e",
+  "result": {
+    "markdown": "# Session Info\n\n\n\n::: {.cell}\n::: {.cell-output .cell-output-stdout}\n```\nR version 4.3.1 (2023-06-16)\nPlatform: x86_64-apple-darwin20 (64-bit)\nRunning under: macOS Sonoma 14.4.1\n\nMatrix products: default\nBLAS:   /Library/Frameworks/R.framework/Versions/4.3-x86_64/Resources/lib/libRblas.0.dylib \nLAPACK: /Library/Frameworks/R.framework/Versions/4.3-x86_64/Resources/lib/libRlapack.dylib;  LAPACK version 3.11.0\n\nlocale:\n[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8\n\ntime zone: Europe/Berlin\ntzcode source: internal\n\nattached base packages:\n[1] stats     graphics  grDevices utils     datasets  methods   base     \n\nloaded via a namespace (and not attached):\n [1] compiler_4.3.1    fastmap_1.1.1     cli_3.6.1         tools_4.3.1      \n [5] htmltools_0.5.7   rstudioapi_0.15.0 rmarkdown_2.25    knitr_1.44       \n [9] jsonlite_1.8.7    xfun_0.40         digest_0.6.33     rlang_1.1.1      \n[13] evaluate_0.21    \n```\n:::\n:::",
+    "supporting": [],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {
+      "knitr": [
+        "{\"type\":\"list\",\"attributes\":{},\"value\":[]}"
+      ]
+    },
+    "preserve": null,
+    "postProcess": false
+  }
+}

@@ -1,1 +1,12 @@
 /.quarto/
+.Rproj.user
+
+# Ignore the raw directory and its contents
+/reproduction_package/data/raw/
+
+# Ignore .DS_Store files
+.DS_Store
+
+# other
+/R1/
+/manuscripts/

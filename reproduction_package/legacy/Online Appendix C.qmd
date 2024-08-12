@@ -1,0 +1,322 @@
+---
+title: 'Online Appendix C'
+subtitle: 'Ambiguity attitudes and surprises'
+author:
+- name: Aljoscha Minnich
+  email: aljoscha.minnich@uni-hamburg.de
+  orcid: 0000-0001-5224-0143
+  corresponding: false
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+- name: Hauke Roggenkamp
+  email: Hauke.Roggenkamp@unisg.ch
+  orcid: 0009-0005-5176-4718
+  corresponding: false
+  affiliations:
+    - name: Institute of Behavioral Science and Technology, University of St. Gallen
+      address: Torstrasse 25
+      city: St. Gallen
+      country: Switzerland
+      postal-code: 9000
+    - name: Faculty of Economics & Social Sciences, Helmut-Schmidt-University
+      address: Holstenhofweg 85
+      city: Hamburg
+      country: Germany
+      postal_code: 22043
+- name: Andreas Lange
+  email: andreas.lange@uni-hamburg.de
+  corresponding: true
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+date: now
+date-format: long
+format: 
+  html:
+    embed-resources: true
+    theme: cosmo
+    fig-height: 8
+toc: true
+bibliography: ../biblio.bib
+---
+
+------------------------------------------------------------------------
+
+This document explains how to reproduce the figures presented in the paper.
+
+# Install Packages
+
+We install the following packages using the `groundhog` package manager to increase computational reproducibility.
+
+```{r install_packages}
+#| output: false
+
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+    library("groundhog")
+}
+
+pkgs <- c("magrittr", "data.table", "stringr", "lubridate", "knitr", "glue",
+          "sandwich", "lmtest",
+          "ggplot2", "ggpubr", "rstatix", "patchwork", "scales")
+
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2023-09-25")
+```
+# Read Data
+
+```{r read_data}
+# data <- data.table::fread(file = "../data/processed/full.csv")
+data <- readRDS(file="../data/processed/full.Rda")
+```
+
+```{r factorize}
+data[, communication := as.factor(communication)]
+data[, communication := factor(communication, levels = c("point", "both","interval"))]
+data[, stage := as.factor(stage)]
+data[, stage := factor(stage, levels = c("1", "2"))]
+```
+
+# Data set
+
+```{r combined data}
+ful1<-subset(data,data$stage==1)
+ful2<-subset(data,data$stage==2)
+
+cols <- c("participant.label", "E1", "E2", "E3", "E12","E23","E13","b","a","communication","surprise")
+ful1 <- ful1[, ..cols]
+ful2 <- ful2[, ..cols]
+
+fgr<-merge(ful1,ful2,by=c("participant.label","communication","surprise"))
+
+ful1<-NULL
+ful2<-NULL
+```
+
+
+#Subsets for the figures
+table
+```{r subsets}
+
+fgr1<-subset(fgr,fgr$surprise==TRUE & fgr$communication=="both")
+fgr2<-subset(fgr,fgr$surprise==TRUE & fgr$communication=="interval")
+fgr3<-subset(fgr,fgr$surprise==TRUE & fgr$communication=="point")
+fgr4<-subset(fgr,fgr$surprise==FALSE & fgr$communication=="both")
+fgr5<-subset(fgr,fgr$surprise==FALSE & fgr$communication=="interval")
+fgr6<-subset(fgr,fgr$surprise==FALSE & fgr$communication=="point")
+fgr7<-subset(fgr,fgr$surprise==TRUE)
+fgr8<-subset(fgr,fgr$surprise==FALSE)
+```
+
+
+
+
+
+# Figure OC1
+
+To create @fig-oc1 (and the other figures), we create a wrapper function that we can call several times. As all the other figures presented in this document, @fig-oc1 consists of eight panels, that are relatively similar. We thus, save both space and sources of error by creating a wrapper function `plot_bars()` that creates bar plots and annotates them.
+
+```{r bar_function}
+
+plot_bars <- function(outcome.y,outcome.x,participant.label,tmp, breaks, limits,x1,x2,x3,x4,y1,y2,y3,y4){
+
+
+#percentage for graph:
+p1<-scales::percent(as.numeric(table(outcome.y>outcome.x)["TRUE"]/length(unique(participant.label))),accuracy = 1)#upper percentage
+p2<-scales::percent(as.numeric(table(outcome.y<outcome.x)["TRUE"]/length(unique(participant.label))),accuracy = 1)#lower percentage
+
+#Spearman Correlation for Subtitle of graph:
+ro.value<-round(cor(outcome.x, outcome.y, method = c("spearman")),2)
+
+
+plot<-ggplot(data=tmp, aes(x = outcome.x, y = outcome.y)) +
+  geom_count(shape=1,show.legend = FALSE)+
+  theme(line = element_blank(), panel.background = element_rect(fill = "white",
+                                                                colour = "white",
+                                                                linewidth = 0.5, linetype = "solid"))+
+  xlab(as.expression(bquote(rho~"="~.(ro.value)))) +
+  ylab("") +
+  geom_vline(xintercept = 0, colour = "black")+
+  geom_hline(yintercept = 0, colour = "black")+
+  geom_abline(intercept = 0, slope = 1, color="black", 
+               linewidth=0.6)+
+  scale_x_continuous(breaks = breaks, lim = limits)+
+  scale_y_continuous(breaks = breaks, lim = limits)+
+  geom_text(x=x1, y=y1, label="Part 1")+
+  geom_text(x=x2, y=y2, label="Part 2")+
+  geom_text(x=x3, y=y3, label=p1)+
+  geom_text(x=x4, y=y4, label=p2)
+
+  
+  plot
+  
+}
+
+```
+
+```{r fig_oc1}
+#| label: fig-oc1
+#| fig-cap: 'Scatterplot of the ambiguity index b. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+top1   <- plot_bars(fgr8$b.y,fgr8$b.x,fgr8$participant.label,fgr8,seq(-1, 1, 0.5), c(-1.02, 1.02),0.9,0.3,-0.6,0.6,-0.115,1.05,0.7,-0.7)
+top2  <- plot_bars(fgr7$b.y,fgr7$b.x,fgr7$participant.label,fgr7, seq(-1, 1, 0.5), c(-1.02, 1.02),0.9,0.3,-0.6,0.6,-0.115,1.05,0.7,-0.7)
+middle1 <- plot_bars(fgr6$b.y,fgr6$b.x,fgr6$participant.label,fgr6, seq(-1, 1, 0.5), c(-1.02, 1.02),0.9,0.3,-0.6,0.6,-0.115,1.05,0.7,-0.7)
+middle2 <- plot_bars(fgr5$b.y,fgr5$b.x,fgr5$participant.label,fgr5, seq(-1, 1, 0.5), c(-1.02, 1.02),0.9,0.3,-0.6,0.6,-0.115,1.05,0.7,-0.7)
+middle3 <- plot_bars(fgr4$b.y,fgr4$b.x,fgr4$participant.label,fgr4, seq(-1, 1, 0.5), c(-1.02, 1.02),0.9,0.3,-0.6,0.6,-0.115,1.05,0.7,-0.7)
+down1 <- plot_bars(fgr3$b.y,fgr3$b.x,fgr3$participant.label,fgr3, seq(-1, 1, 0.5), c(-1.02, 1.02),0.9,0.3,-0.6,0.6,-0.115,1.05,0.7,-0.7)
+down2 <- plot_bars(fgr2$b.y,fgr2$b.x,fgr2$participant.label,fgr2, seq(-1, 1, 0.5), c(-1.02, 1.02),0.9,0.3,-0.6,0.6,-0.115,1.05,0.7,-0.7)
+down3 <- plot_bars(fgr1$b.y,fgr1$b.x,fgr1$participant.label,fgr1, seq(-1, 1, 0.5), c(-1.02, 1.02),0.9,0.3,-0.6,0.6,-0.115,1.05,0.7,-0.7)
+
+( (top1|top2) / (middle1 | middle2 | middle3) / (down1 | down2 | down3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+# Figure OC.2
+
+```{r fig_oc2}
+#| label: fig-oc2
+#| fig-cap: 'Scatterplot of the ambiguity index a. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+top1   <- plot_bars(fgr8$a.y,fgr8$a.x,fgr8$participant.label,fgr8, seq(-2, 4, 1), c(-2, 4), 3.4,0.8,-1.5,1.5,-0.4,3.9,1.9,-1.9)
+top2  <- plot_bars(fgr7$a.y,fgr7$a.x,fgr7$participant.label,fgr7, seq(-2, 4, 1), c(-2, 4), 3.4,0.8,-1.5,1.5,-0.4,3.9,1.9,-1.9)
+middle1 <- plot_bars(fgr6$a.y,fgr6$a.x,fgr6$participant.label,fgr6, seq(-2, 4, 1), c(-2, 4), 3.4,0.8,-1.5,1.5,-0.4,3.9,1.9,-1.9)
+middle2 <- plot_bars(fgr5$a.y,fgr5$a.x,fgr5$participant.label,fgr5, seq(-2, 4, 1), c(-2, 4), 3.4,0.8,-1.5,1.5,-0.4,3.9,1.9,-1.9)
+middle3 <- plot_bars(fgr4$a.y,fgr4$a.x,fgr4$participant.label,fgr4, seq(-2, 4, 1), c(-2, 4), 3.4,0.8,-1.5,1.5,-0.4,3.9,1.9,-1.9)
+down1 <- plot_bars(fgr3$a.y,fgr3$a.x,fgr3$participant.label,fgr3, seq(-2, 4, 1), c(-2, 4), 3.4,0.8,-1.5,1.5,-0.4,3.9,1.9,-1.9)
+down2 <- plot_bars(fgr2$a.y,fgr2$a.x,fgr2$participant.label,fgr2, seq(-2, 4, 1), c(-2, 4), 3.4,0.8,-1.5,1.5,-0.4,3.9,1.9,-1.9)
+down3 <- plot_bars(fgr1$a.y,fgr1$a.x,fgr1$participant.label,fgr1, seq(-2, 4, 1), c(-2, 4), 3.4,0.8,-1.5,1.5,-0.4,3.9,1.9,-1.9)
+
+( (top1|top2) / (middle1 | middle2 | middle3) / (down1 | down2 | down3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+
+# Figure OC.3
+
+```{r fig_oc3}
+#| label: fig-oc3
+#| fig-cap: 'Scatterplot of the matching probabilities for event E1. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+top1   <- plot_bars(fgr8$E1.y,fgr8$E1.x,fgr8$participant.label,fgr8, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+top2  <- plot_bars(fgr7$E1.y,fgr7$E1.x,fgr7$participant.label,fgr7, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle1 <- plot_bars(fgr6$E1.y,fgr6$E1.x,fgr6$participant.label,fgr6, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle2 <- plot_bars(fgr5$E1.y,fgr5$E1.x,fgr5$participant.label,fgr5, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle3 <- plot_bars(fgr4$E1.y,fgr4$E1.x,fgr4$participant.label,fgr4, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down1 <- plot_bars(fgr3$E1.y,fgr3$E1.x,fgr3$participant.label,fgr3, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down2 <- plot_bars(fgr2$E1.y,fgr2$E1.x,fgr2$participant.label,fgr2, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down3 <- plot_bars(fgr1$E1.y,fgr1$E1.x,fgr1$participant.label,fgr1, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+
+
+( (top1|top2) / (middle1 | middle2 | middle3) / (down1 | down2 | down3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+# Figure OC.4
+
+```{r fig_oc4}
+#| label: fig-oc4
+#| fig-cap: 'Scatterplot of the matching probabilities for event E2. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+top1   <- plot_bars(fgr8$E2.y,fgr8$E2.x,fgr8$participant.label,fgr8, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+top2  <- plot_bars(fgr7$E2.y,fgr7$E2.x,fgr7$participant.label,fgr7, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle1 <- plot_bars(fgr6$E2.y,fgr6$E2.x,fgr6$participant.label,fgr6, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle2 <- plot_bars(fgr5$E2.y,fgr5$E2.x,fgr5$participant.label,fgr5, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle3 <- plot_bars(fgr4$E2.y,fgr4$E2.x,fgr4$participant.label,fgr4, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down1 <- plot_bars(fgr3$E2.y,fgr3$E2.x,fgr3$participant.label,fgr3, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down2 <- plot_bars(fgr2$E2.y,fgr2$E2.x,fgr2$participant.label,fgr2, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down3 <- plot_bars(fgr1$E2.y,fgr1$E2.x,fgr1$participant.label,fgr1, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+
+
+
+( (top1|top2) / (middle1 | middle2 | middle3) / (down1 | down2 | down3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+# Figure OC.5
+
+```{r fig_oc5}
+#| label: fig-oc5
+#| fig-cap: 'Scatterplot of the matching probabilities for event E3. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+top1   <- plot_bars(fgr8$E3.y,fgr8$E3.x,fgr8$participant.label,fgr8, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+top2  <- plot_bars(fgr7$E3.y,fgr7$E3.x,fgr7$participant.label,fgr7, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle1 <- plot_bars(fgr6$E3.y,fgr6$E3.x,fgr6$participant.label,fgr6, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle2 <- plot_bars(fgr5$E3.y,fgr5$E3.x,fgr5$participant.label,fgr5, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle3 <- plot_bars(fgr4$E3.y,fgr4$E3.x,fgr4$participant.label,fgr4, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down1 <- plot_bars(fgr3$E3.y,fgr3$E3.x,fgr3$participant.label,fgr3, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down2 <- plot_bars(fgr2$E3.y,fgr2$E3.x,fgr2$participant.label,fgr2, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down3 <- plot_bars(fgr1$E3.y,fgr1$E3.x,fgr1$participant.label,fgr1, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+
+
+( (top1|top2) / (middle1 | middle2 | middle3) / (down1 | down2 | down3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+# Figure OC.6
+
+```{r fig_oc6}
+#| label: fig-oc6
+#| fig-cap: 'Scatterplot of the matching probabilities for event E12. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+top1   <- plot_bars(fgr8$E12.y,fgr8$E12.x,fgr8$participant.label,fgr8, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+top2  <- plot_bars(fgr7$E12.y,fgr7$E12.x,fgr7$participant.label,fgr7, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle1 <- plot_bars(fgr6$E12.y,fgr6$E12.x,fgr6$participant.label,fgr6, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle2 <- plot_bars(fgr5$E12.y,fgr5$E12.x,fgr5$participant.label,fgr5, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle3 <- plot_bars(fgr4$E12.y,fgr4$E12.x,fgr4$participant.label,fgr4, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down1 <- plot_bars(fgr3$E12.y,fgr3$E12.x,fgr3$participant.label,fgr3, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down2 <- plot_bars(fgr2$E12.y,fgr2$E12.x,fgr2$participant.label,fgr2, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down3 <- plot_bars(fgr1$E12.y,fgr1$E12.x,fgr1$participant.label,fgr1, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+
+
+( (top1|top2) / (middle1 | middle2 | middle3) / (down1 | down2 | down3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+# Figure OC.7
+
+```{r fig_oc7}
+#| label: fig-oc7
+#| fig-cap: 'Scatterplot of the matching probabilities for event E13. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+top1   <- plot_bars(fgr8$E13.y,fgr8$E13.x,fgr8$participant.label,fgr8, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+top2  <- plot_bars(fgr7$E13.y,fgr7$E13.x,fgr7$participant.label,fgr7, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle1 <- plot_bars(fgr6$E13.y,fgr6$E13.x,fgr6$participant.label,fgr6, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle2 <- plot_bars(fgr5$E13.y,fgr5$E13.x,fgr5$participant.label,fgr5, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle3 <- plot_bars(fgr4$E13.y,fgr4$E13.x,fgr4$participant.label,fgr4, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down1 <- plot_bars(fgr3$E13.y,fgr3$E13.x,fgr3$participant.label,fgr3, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down2 <- plot_bars(fgr2$E13.y,fgr2$E13.x,fgr2$participant.label,fgr2, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down3 <- plot_bars(fgr1$E13.y,fgr1$E13.x,fgr1$participant.label,fgr1, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+
+
+( (top1|top2) / (middle1 | middle2 | middle3) / (down1 | down2 | down3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+# Figure OC.8
+
+```{r fig_oc8}
+#| label: fig-oc8
+#| fig-cap: 'Scatterplot of the matching probabilities for event E23. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+top1   <- plot_bars(fgr8$E23.y,fgr8$E23.x,fgr8$participant.label,fgr8, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+top2  <- plot_bars(fgr7$E23.y,fgr7$E23.x,fgr7$participant.label,fgr7, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle1 <- plot_bars(fgr6$E23.y,fgr6$E23.x,fgr6$participant.label,fgr6, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle2 <- plot_bars(fgr5$E23.y,fgr5$E23.x,fgr5$participant.label,fgr5, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+middle3 <- plot_bars(fgr4$E23.y,fgr4$E23.x,fgr4$participant.label,fgr4, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down1 <- plot_bars(fgr3$E23.y,fgr3$E23.x,fgr3$participant.label,fgr3, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down2 <- plot_bars(fgr2$E23.y,fgr2$E23.x,fgr2$participant.label,fgr2, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+down3 <- plot_bars(fgr1$E23.y,fgr1$E23.x,fgr1$participant.label,fgr1, seq(0, 100, 50), c(0, 101), 90,15,15,90,5,100,80,20)
+
+
+
+( (top1|top2) / (middle1 | middle2 | middle3) / (down1 | down2 | down3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+

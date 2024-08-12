@@ -1,0 +1,1979 @@
+---
+title: 'Online Appendix'
+subtitle: 'Ambiguity attitudes and surprises'
+author:
+- name: Aljoscha Minnich
+  email: aljoscha.minnich@uni-hamburg.de
+  orcid: 0000-0001-5224-0143
+  corresponding: false
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+- name: Hauke Roggenkamp
+  email: Hauke.Roggenkamp@unisg.ch
+  orcid: 0009-0005-5176-4718
+  corresponding: false
+  affiliations:
+    - name: Institute of Behavioral Science and Technology, University of St. Gallen
+      address: Torstrasse 25
+      city: St. Gallen
+      country: Switzerland
+      postal-code: 9000
+    - name: Faculty of Economics & Social Sciences, Helmut-Schmidt-University
+      address: Holstenhofweg 85
+      city: Hamburg
+      country: Germany
+      postal_code: 22043
+- name: Andreas Lange
+  email: andreas.lange@uni-hamburg.de
+  corresponding: true
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+date: now
+date-format: long
+format: 
+  html:
+    embed-resources: true
+    theme: cosmo
+    fig-height: 8
+    code-fold: true
+    code-summary: "Show the code"
+    output-dir: "../rendered_documents"
+toc: true
+execute:
+  warning: false
+bibliography: ../biblio.bib
+
+
+---
+
+# Setup
+
+## Install Packages
+
+We install the following packages using the `groundhog` package manager to increase computational reproducibility.
+
+```{r install_packages}
+#| output: false
+
+options(repos = c(CRAN = "https://cran.r-project.org")) 
+
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+    library("groundhog")
+}
+
+pkgs <- c("magrittr", "data.table", "stringr", "Rmisc", "ggplot2", "patchwork",
+          "rstatix", "ggpubr", "glue", "lubridate", "plyr", 
+          "lmtest", "sandwich", "stargazer" # packages for regression tables
+          )
+
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2023-09-25")
+```
+
+## Read Data
+
+```{r read_data}
+data      <- readRDS(file="../data/processed/full.Rda")
+timeSpent <- data.table::fread(file = "../data/raw/PageTimes-2021-09-15.csv")
+raw       <- data.table::fread(file="../data/raw/all_apps_wide_2021-09-15.csv")
+```
+
+## Manipulate Data
+
+```{r factorize}
+data[, communication := as.factor(communication)]
+data[, communication := factor(communication, levels = c("point", "both","interval"))]
+
+data[, stage := as.factor(stage)]
+data[, stage := factor(stage, levels = c("1", "2"))]
+```
+
+```{r probabilites}
+cols <- str_subset(string = names(data), pattern = "E\\d+")
+data[, 
+     str_replace_all(string = cols, pattern = "^E", replacement = "m") := lapply(.SD, function(x) x / 100), 
+     .SDcols = cols] 
+
+data[, p1 := 0.5 + (m1 - m23)/ (6*(mc-ms))]
+data[, p2 := 0.5 + (m2 - m13)/ (6*(mc-ms))]
+data[, p3 := 0.5 + (m3 - m12)/ (6*(mc-ms))]
+```
+
+```{r monotonicity_subset}
+#| lst-label: lst-plot
+#| lst-cap: Exclude Monotonicity Violations
+
+strict_violators <- data[a >= 1 | 
+                           E1 > E12 | E1 > E13 | 
+                           E2 > E12 | E2 > E23 |
+                           E3 > E13 | E3 > E23, 
+                         unique(participant.label)]
+subset <- data[!(participant.label %in% strict_violators)]
+```
+
+```{r wide_data}
+wide_data <- data.table::dcast(data, 
+                                participant.label + surprise + communication ~ stage, 
+                                value.var = c("E1", "E2", "E3", "E12", "E23","E13", "b", "a"))
+
+setorder(wide_data, surprise, communication, participant.label)
+
+wide_subset <- data.table::dcast(subset, 
+                                 participant.label + surprise + communication ~ stage, 
+                                 value.var = c("p1", "p2", "p3"))
+
+setorder(wide_subset, surprise, communication, participant.label)
+```
+
+```{r euclidian_distance}
+#| lst-label: lst-euclidian_distance
+#| lst-cap: Calculate Euclidian Distance for Subjective Probability Proxy
+
+wide_subset[, euclidian_distance := sqrt((p1_1 - p1_2)^2 +
+                                           (p2_1 - p2_2)^2 +
+                                           (p3_1 - p3_2)^2)]
+```
+
+## Layout
+
+```{r desing_features}
+
+colors <- c("#F3B05C", "#1E4A75", "#65B5C0", "#AD5E21")
+
+layout <- theme(panel.background = element_rect(fill = "white"),
+                legend.key = element_rect(fill = "white"),
+                panel.grid.major.y = element_line(colour = "grey", 
+                                                  linewidth = 0.25),
+                axis.ticks.y = element_blank(),
+                panel.grid.major.x = element_blank(),
+                axis.line.x.bottom = element_line(colour = "#000000", 
+                                                  linewidth = 0.5),
+                axis.line.y.left = element_blank(),
+                plot.title = element_text(size = rel(1))
+)
+
+```
+
+
+## Helper Functions
+
+```{r bar_function}
+#| lst-label: lst-plot-bars
+#| lst-cap: plot_bars()
+
+plot_bars <- function(response = "E", surprise_sub = NA, limits = ylim(-0.1, 100.1)){
+  
+  if(response == "E1"|response == "E2"|response == "E3"){
+      y_1 = 73
+      y_2 = 55
+    } else {
+      y_1 = 73
+      y_2 = 63
+    }
+  
+  if(!is.na(surprise_sub)){
+    # Plot bottom panels
+    tmp <- data[surprise == surprise_sub]
+    names(tmp)[names(tmp) == response] <- 'outcome'
+    
+    if(surprise_sub){
+      title <- "Surprising Condition"
+    } else {
+      title <- "Confirming Condition"
+    }
+    
+    test_stats_1 <- tmp %>% 
+      group_by(communication) %>%
+      wilcox_test(formula = outcome ~ stage,
+                  paired = T) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    
+    
+    test_stats_2 <- tmp %>% 
+      group_by(stage) %>%
+      wilcox_test(formula = outcome ~ communication) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    test_stats_2 <- test_stats_2[stage == 2]
+    
+    plot_bottom <- ggplot(data = tmp,
+           mapping = aes(x = as.factor(communication),
+                         y = outcome)) +
+        geom_bar(position = "dodge", 
+                 stat = "summary", 
+                 fun = "mean",
+                 fill = colors[2]) + 
+      limits +
+      scale_y_continuous(limits = c(0, 100), expand = c(0, NA)) +
+      layout +
+      stat_pvalue_manual(data = test_stats_2,
+                         label = "{p} ({p.adj.signif})", 
+                         step.group.by = "stage",
+                         tip.length = 0, 
+                         step.increase = 0.1, 
+                         y.position = y_1) +
+      stat_pvalue_manual(data = test_stats_1,
+                         label = "{p} ({p.adj.signif})",
+                         y.position = y_2,
+                         tip.length = 0,
+                         x = "communication") +
+      labs(title = title,
+           x = "Communication",
+           y = glue("{response}"))
+    
+    rm(tmp)
+    
+    plot_bottom
+  } else {
+    # Plot the top panel
+    tmp <- data
+    names(tmp)[names(tmp) == response] <- 'outcome'
+    
+    title <- "Both Conditions"
+    
+    test_stats_1 <- tmp %>% 
+      group_by(surprise) %>%
+      wilcox_test(formula = outcome ~ stage,
+                  paired = T) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    
+    
+    test_stats_2 <- tmp %>% 
+      group_by(stage) %>%
+      wilcox_test(formula = outcome ~ surprise) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    test_stats_2 <- test_stats_2[stage == 2]
+    
+    
+    plot_top <- ggplot(data = tmp,
+           mapping = aes(x = as.factor(surprise),
+                         y = outcome)) +
+        geom_bar(position = "dodge", 
+                 stat = "summary", 
+                 fun = "mean",
+                 fill = colors[2]) + 
+      limits +
+      scale_y_continuous(limits = c(0, 100), expand = c(0, NA)) +
+      layout +
+      stat_pvalue_manual(data = test_stats_2,
+                         label = "{p} ({p.adj.signif})", 
+                         step.group.by = "stage",
+                         tip.length = 0, 
+                         step.increase = 0.1, 
+                         y.position = y_1) +
+      stat_pvalue_manual(data = test_stats_1,
+                         label = "{p} ({p.adj.signif})",
+                         y.position = y_2,
+                         tip.length = 0,
+                         x = "surprise") +
+      labs(title = title,
+           x = " Surprising Condition",
+           y = glue(" {response}"))
+    
+    rm(tmp)
+    
+    plot_top
+  }
+}
+
+```
+
+
+We also create a slight variation of this function for Online Appendix E:
+
+```{r bar_function_2}
+#| lst-label: lst-plot-bars_2
+#| lst-cap: plot_bars() for OAE
+
+plot_bars2 <- function(data, response = "p", surprise_sub = NA, limits = ylim(-0.05, 1.02)){
+  
+  if(response == "p1" | response == "p2" | response == "p3"){
+      y_1 = 0.6
+      y_2 = 0.4
+    } else {
+      y_1 = 1.4
+      y_2 = 1
+    }
+  
+  if(!is.na(surprise_sub)){
+    # Plot bottom panels
+    tmp <- data[data$surprise == surprise_sub, ]
+    names(tmp)[names(tmp) == response] <- 'outcome'
+    
+    if(surprise_sub){
+      title <- "Surprising Condition"
+    } else {
+      title <- "Confirming Condition"
+    }
+    
+    test_stats_1 <- tmp %>%
+      dplyr::group_by(communication) %>%
+      rstatix::wilcox_test(formula = outcome ~ stage, paired = TRUE) %>% 
+      rstatix::adjust_pvalue(method = "none") %>%
+      rstatix::add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c("***", "**", "*", "ns")) %>%
+      dplyr::as_tibble()
+    
+    test_stats_2 <- tmp %>%
+      dplyr::group_by(stage) %>%
+      rstatix::wilcox_test(formula = outcome ~ communication) %>% 
+      rstatix::adjust_pvalue(method = "none") %>%
+      rstatix::add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c("***", "**", "*", "ns")) %>%
+      dplyr::as_tibble()
+    
+    test_stats_2 <- test_stats_2[test_stats_2$stage == 2, ]
+    
+    plot_bottom <- ggplot2::ggplot(data = tmp,
+           mapping = ggplot2::aes(x = as.factor(communication), y = outcome)) +
+        ggplot2::geom_bar(ggplot2::aes(fill = stage),
+                 position = "dodge", 
+                 stat = "summary", 
+                 fun = "mean") + 
+      limits +
+      ggplot2::scale_fill_manual(values=c("black", "gray")) +
+      ggplot2::theme_classic() +
+      ggpubr::stat_pvalue_manual(data = test_stats_2,
+                         label = "{p} ({p.adj.signif})", 
+                         step.group.by = "stage",
+                         tip.length = 0, 
+                         step.increase = 0.1, 
+                         y.position = y_1) +
+      ggpubr::stat_pvalue_manual(data = test_stats_1,
+                         label = "{p} ({p.adj.signif})",
+                         y.position = y_2,
+                         tip.length = 0,
+                         x = "communication") +
+      ggplot2::labs(title = title, x = "Communication", y = glue::glue("{response}"))
+    
+    rm(tmp)
+    
+    return(plot_bottom)
+  } else {
+    # Plot the top panel
+    tmp <- data
+    names(tmp)[names(tmp) == response] <- 'outcome'
+    
+    title <- "Both Conditions"
+    
+    test_stats_1 <- tmp %>%
+      dplyr::group_by(surprise) %>%
+      rstatix::wilcox_test(formula = outcome ~ stage, paired = TRUE) %>% 
+      rstatix::adjust_pvalue(method = "none") %>%
+      rstatix::add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c("***", "**", "*", "ns")) %>%
+      dplyr::as_tibble()
+    
+    test_stats_2 <- tmp %>%
+      dplyr::group_by(stage) %>%
+      rstatix::wilcox_test(formula = outcome ~ surprise) %>% 
+      rstatix::adjust_pvalue(method = "none") %>%
+      rstatix::add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c("***", "**", "*", "ns")) %>%
+      dplyr::as_tibble()
+    
+    test_stats_2 <- test_stats_2[test_stats_2$stage == 2, ]
+    
+    plot_top <- ggplot2::ggplot(data = tmp,
+           mapping = ggplot2::aes(x = as.factor(surprise), y = outcome)) +
+        ggplot2::geom_bar(ggplot2::aes(fill = stage),
+                 position = "dodge", 
+                 stat = "summary", 
+                 fun = "mean") + 
+      limits +
+      ggplot2::scale_fill_manual(values=c("black", "gray")) +
+      ggplot2::theme_classic() +
+      ggpubr::stat_pvalue_manual(data = test_stats_2,
+                         label = "{p} ({p.adj.signif})", 
+                         step.group.by = "stage",
+                         tip.length = 0, 
+                         step.increase = 0.1, 
+                         y.position = y_1) +
+      ggpubr::stat_pvalue_manual(data = test_stats_1,
+                         label = "{p} ({p.adj.signif})",
+                         y.position = y_2,
+                         tip.length = 0,
+                         x = "surprise") +
+      ggplot2::labs(title = title, x = " Surprising Condition", y = glue::glue("{response}"))
+    
+    rm(tmp)
+    
+    return(plot_top)
+  }
+}
+
+
+```
+
+
+To create @fig-oc1 (and the other figures), we create a wrapper function that we can call several times. Figures such as @fig-oc1 consist of eight panels, that are relatively similar. We thus, save both space and sources of error by creating a wrapper function `plot_scatter()` that creates scatter plots. To annotate and scale these plots, we also create a wrapper function for `plot_scatter()` called `plot_scatter_with_defaults()`. The latter function is called in the script below and contains some hard-coded defaults that determine annotations and the scales, i.e., where the annotations are placed.
+
+```{r scatter_function}
+
+plot_scatter <- function(outcome.y = "b_2", 
+                         outcome.x = "b_1", 
+                         DT = wide_data[surprise == FALSE & communication == "both"], 
+                         breaks = seq(from = -1, to = 1, by = 0.5), 
+                         limits = c(-1, 1), 
+                         # manual annotation positions:
+                         x1 = 0.9,
+                         x2 = 0.3,
+                         x3 = -0.6,
+                         x4 = 0.6, 
+                         y1 = - 0.115,
+                         y2 = 1.05,
+                         y3 = 0.7,
+                         y4 = -0.7){
+  
+  
+  # Percentage Annotation
+  p1 <- scales::percent(x = sum(DT[,..outcome.y] > DT[,..outcome.x], na.rm = TRUE) / DT[, .N], 
+                        accuracy = 1)
+  p2 <- scales::percent(x = sum(DT[,..outcome.y] < DT[,..outcome.x], na.rm = TRUE) / DT[, .N], 
+                        accuracy = 1)
+  
+  # Spearman Correlation for Subtitle
+  ro.value <- round(x = cor(DT[,..outcome.x], 
+                            DT[,..outcome.y], 
+                            method = c("spearman")),
+                    digits = 2)
+  
+  
+  # Plot
+  plot <- ggplot(data = DT,
+                 mapping = aes(x = get(outcome.x),
+                               y = get(outcome.y))) +
+    geom_count(shape = 1, show.legend = FALSE) +
+    
+    # add axes and diagonal
+    geom_vline(xintercept = 0) +
+    geom_hline(yintercept = 0) +
+    geom_abline(intercept = 0, slope = 1, linewidth = 0.6) +
+    
+    # remove all the other lines
+    theme(line = element_blank(), 
+          panel.background = element_rect(fill = "white",
+                                          colour = "white",
+                                          linetype = "solid")) +
+    
+    # define axis labels
+    labs(x = as.expression(bquote(rho~"="~.(ro.value))),
+         y = "") +
+    
+    # add annotations
+    geom_text(x = x1, y = y1, label = "Part 1") +
+    geom_text(x = x2, y = y2, label = "Part 2") +
+    geom_text(x = x3, y = y3, label = p1) +
+    geom_text(x = x4, y = y4, label = p2) +
+  
+    # define consistent axis breaks etc.
+    scale_x_continuous(breaks = breaks, lim = limits) +
+    scale_y_continuous(breaks = breaks, lim = limits)
+    
+    plot
+  
+}
+
+# Wrapper function with a consistent parameter handling approach
+plot_scatter_with_defaults <- function(DT, figure = "oc1") {
+  # Define defaults for each set
+  defaults <- list(
+    oc1 = list(outcome.y = "b_2", outcome.x = "b_1",
+               breaks = seq(from = -1, to = 1, by = 0.5), 
+               limits = c(-1, 1), 
+               x1 = 0.9, x2 = 0.3, x3 = -0.6, x4 = 0.6, 
+               y1 = -0.115, y2 = 1.05, y3 = 0.7, y4 = -0.7),
+    oc2 = list(outcome.y = "a_2", outcome.x = "a_1",
+               breaks = seq(from = -2, to = 4, by = 1), 
+               limits = c(-2, 4), 
+               x1 = 3.4, x2 = 0.8, x3 = -1.5, x4 = 1.5, 
+               y1 = -0.4, y2 = 0.39, y3 = 1.9, y4 = -1.9),
+    oc3 = list(outcome.y = "E1_2", outcome.x = "E1_1",
+               breaks = seq(from = 0, to = 100, by = 50), 
+               limits = c(0, 101), 
+               x1 = 90, x2 = 15, x3 = 15, x4 = 90, 
+               y1 = 5, y2 = 100, y3 = 80, y4 = 20),
+    oc4 = list(outcome.y = "E2_2", outcome.x = "E2_1",
+               breaks = seq(from = 0, to = 100, by = 50), 
+               limits = c(0, 101), 
+               x1 = 90, x2 = 15, x3 = 15, x4 = 90, 
+               y1 = 5, y2 = 100, y3 = 80, y4 = 20),
+    oc5 = list(outcome.y = "E3_2", outcome.x = "E3_1",
+               breaks = seq(from = 0, to = 100, by = 50), 
+               limits = c(0, 101), 
+               x1 = 90, x2 = 15, x3 = 15, x4 = 90, 
+               y1 = 5, y2 = 100, y3 = 80, y4 = 20),
+    oc6 = list(outcome.y = "E12_2", outcome.x = "E12_1",
+               breaks = seq(from = 0, to = 100, by = 50), 
+               limits = c(0, 101), 
+               x1 = 90, x2 = 15, x3 = 15, x4 = 90, 
+               y1 = 5, y2 = 100, y3 = 80, y4 = 20),
+    oc7 = list(outcome.y = "E13_2", outcome.x = "E13_1",
+               breaks = seq(from = 0, to = 100, by = 50), 
+               limits = c(0, 101), 
+               x1 = 90, x2 = 15, x3 = 15, x4 = 90, 
+               y1 = 5, y2 = 100, y3 = 80, y4 = 20),
+    oc8 = list(outcome.y = "E23_2", outcome.x = "E23_1",
+               breaks = seq(from = 0, to = 100, by = 50), 
+               limits = c(0, 101), 
+               x1 = 90, x2 = 15, x3 = 15, x4 = 90, 
+               y1 = 5, y2 = 100, y3 = 80, y4 = 20)
+  )
+  
+  # Remove the non-required default params before calling the plot function
+  default_params <- defaults[[figure]]
+  
+  # Combine all parameters
+  args <- c(list(DT = DT), default_params)
+  
+  # Call the original plot function with the combined arguments
+  do.call(plot_scatter, args)
+}
+```
+
+# Online Appendix A
+
+## Figure OA1
+
+
+```{r fig_oa1}
+#| label: fig-OA1
+#| warning: false
+#| fig-cap: 'Average response time of the 12 ambiguity tasks of the full sample (1505 observations; outliers removed as described in the figure).'
+
+timeSpent[,
+          lag := shift(epoch_time_completed, fill = NA, type = "lag"),
+          by = c("session_code", "participant_code")]
+timeSpent[,
+          duration := epoch_time_completed - lag,
+          by = c("session_code", "participant_code")]
+timeSpent[,
+          completion := epoch_time_completed %>% max() - epoch_time_completed %>% min(),
+          by = c("session_code", "participant_code")]
+
+duration <- timeSpent[participant_code %in% data$participant.code,
+                      .(
+                        session_code,
+                        participant_code,
+                        app_name,
+                        page_name,
+                        page_index,
+                        page_submission = epoch_time_completed,
+                        time_spent = duration,
+                        completion_time = completion
+                      )]
+
+
+N <- duration[, participant_code %>% unique() %>% length()]
+
+tmp <- duration[app_name == "Baillon" & page_name == "Baillon_Decision",
+                 .(time_spent = time_spent %>% sum()),
+                 by = c("session_code", "participant_code", "page_index", "page_name")]
+
+tmp[, round := page_index-2, by = c("participant_code")]
+
+# remove outliers
+plotDT <- tmp[,
+               .SD[time_spent < quantile(time_spent, probs = 0.99)],
+               by = page_index]
+
+ggplot(data = summarySE(data = plotDT,
+                        measurevar = "time_spent",
+                        groupvars=c("round"),
+                        na.rm = FALSE,
+                        conf.interval = 0.95,
+                        .drop = TRUE),
+       mapping = aes(x = round, y = time_spent)) +
+  geom_hline(yintercept = 0) +
+  layout +
+  theme(legend.position="bottom") +
+  geom_line(show.legend=FALSE, color = colors[2], lty=2) +
+  geom_errorbar(aes(ymin=time_spent-ci, ymax=time_spent+ci), width=.25, alpha = 0.5, color = colors[3]) +
+  geom_point(color = colors[2]) +
+  scale_x_continuous(name="", breaks = 1:12) +
+  scale_y_continuous(limits = c(0, NA), expand = c(0, 0),
+                     breaks = c(0,
+                                plotDT[round == 1, time_spent %>% mean() %>% round(digits=0)],
+                                plotDT[round == 2, time_spent %>% mean() %>% round(digits=0)],
+                                plotDT[round == 7, time_spent %>% mean() %>% round(digits=0)],
+                                plotDT[round == 12, time_spent %>% mean() %>% round(digits=0)])) +
+  labs(y = "Response Time in Seconds", caption = "Bars indicate 95% confidence intervals.
+\nOutliers (identified by 99.0 quantile) removed.")
+
+rm(list = c("tmp", "timeSpent", "duration", "plotDT", "pkgs"))
+
+```
+
+## Figure OA.2
+
+```{r}
+#| label: fig-OA2a
+#| fig-cap: 'Dropout participants of the experiment by page number.'
+
+ggplot(data = raw[nchar(participant.label) == 32 & session.is_demo == 0 & participant._index_in_pages < 20],
+       aes(x=participant._index_in_pages)) + 
+  geom_hline(yintercept = 0) +
+  geom_histogram(binwidth = 1, 
+                 fill = colors[2])  +
+  scale_y_continuous(limits = c(0, NA), expand = c(0, 0)) +
+  # scale_y_log10(breaks=c(0, 1, 2, 3, 4, 5, 10, 100), expand = c(0, NA)) +
+  layout +
+  labs(x = "Pages") +
+  scale_x_continuous(breaks = c(2),
+                     labels = c("Instructions")) +
+  labs(y = "Count", x = "Pages")
+```
+
+```{r}
+#| label: fig-OA2b
+#| fig-cap: 'Dropout participants by treatment after introduction of the treatment.'
+
+raw[Intro.1.player.location == "Ilomantsi", 
+    conditions := paste0("contrad.-",
+                         str_replace_all(string = Intro.1.player.treatment, 
+                                         pattern = "_", 
+                                         replacement = " "))]
+
+raw[Intro.1.player.location == "Weiskirchen", 
+    conditions := paste0("conf.-",
+                         str_replace_all(string = Intro.1.player.treatment, 
+                                         pattern = "_", 
+                                         replacement = " "))]
+
+ggplot(raw[participant._index_in_pages > 8 & nchar(participant.label) == 32 & session.is_demo == 0 & participant._index_in_pages < 20],
+       aes(x  = conditions)) + 
+  geom_hline(yintercept = 0) +
+  geom_bar(fill = colors[2])  +
+  scale_y_continuous(limits = c(0, NA), expand = c(0, NA)) +
+  layout +
+  labs(x = "Treatments", y = "Count") 
+```
+
+
+# Online Appendix B
+
+## Figure OB.1
+
+To create @fig-OB1 (and the other figures), we use the wrapper function defined above. We'll call several times in what follows. As all the other figures presented in this document, @fig-OB1 consists of three panels, `top`, `left`, and `right` that are relatively similar. We thus, save both space and sources of error by creating a wrapper function `plot_bars()` that creates bar plots and annotates them with test statistics.
+
+
+```{r fig_ob1}
+#| label: fig-OB1
+#| fig-cap: 'Means of the matching probabilities for event E1 separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note: ∗p<0.10, ∗∗p<0.05, ∗∗∗p<0.01, ns: not significant'
+
+top   <- plot_bars(response = "E1", surprise_sub = NA)
+left  <- plot_bars(response = "E1", surprise_sub = FALSE)
+right <- plot_bars(response = "E1", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+## Figure OB.2
+
+Next, we use the wrapper function again but visualize another outcome using the `response == E2` argument.
+
+```{r fig_ob2}
+#| label: fig-OB2
+#| fig-cap: 'Means of the matching probabilities for event E2 separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note: ∗p<0.10, ∗∗p<0.05, ∗∗∗p<0.01, ns: not significant'
+
+top   <- plot_bars(response = "E2", surprise_sub = NA)
+left  <- plot_bars(response = "E2", surprise_sub = FALSE)
+right <- plot_bars(response = "E2", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+
+## Figure OB.3
+
+Next, we use the wrapper function again but visualize another outcome using the `response == E3` argument.
+
+```{r fig_ob3}
+#| label: fig-OB3
+#| fig-cap: 'Means of the matching probabilities for event E3 separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note: ∗p<0.10, ∗∗p<0.05, ∗∗∗p<0.01, ns: not significant'
+
+top   <- plot_bars(response = "E3", surprise_sub = NA)
+left  <- plot_bars(response = "E3", surprise_sub = FALSE)
+right <- plot_bars(response = "E3", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+## Figure OB.4
+
+Next, we use the wrapper function again but visualize another outcome using the `response == E12` argument.
+
+```{r fig_ob4}
+#| label: fig-OB4
+#| fig-cap: 'Means of the matching probabilities for event E12 separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note: ∗p<0.10, ∗∗p<0.05, ∗∗∗p<0.01, ns: not significant'
+
+top   <- plot_bars(response = "E12", surprise_sub = NA)
+left  <- plot_bars(response = "E12", surprise_sub = FALSE)
+right <- plot_bars(response = "E12", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+
+## Figure OB.5
+
+Next, we use the wrapper function again but visualize another outcome using the `response == E13` argument.
+
+```{r fig_ob5}
+#| label: fig-OB5
+#| fig-cap: 'Means of the matching probabilities for event E13 separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note: ∗p<0.10, ∗∗p<0.05, ∗∗∗p<0.01, ns: not significant'
+
+top   <- plot_bars(response = "E13", surprise_sub = NA)
+left  <- plot_bars(response = "E13", surprise_sub = FALSE)
+right <- plot_bars(response = "E13", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+
+## Figure OB.6
+
+Next, we use the wrapper function again but visualize another outcome using the `response == E23` argument.
+
+```{r fig_ob6}
+#| label: fig-OB6
+#| fig-cap: 'Means of the matching probabilities for event E23 separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note: ∗p<0.10, ∗∗p<0.05, ∗∗∗p<0.01, ns: not significant'
+
+top   <- plot_bars(response = "E23", surprise_sub = NA)
+left  <- plot_bars(response = "E23", surprise_sub = FALSE)
+right <- plot_bars(response = "E23", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+
+# Online Appendix C
+
+## Figure OC.1
+
+```{r fig_oc1}
+#| label: fig-oc1
+#| fig-cap: 'Scatterplot of the ambiguity index b. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc1")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc1")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc1")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc1")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc1")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc1")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc1")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc1")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+
+## Figure OC.2
+
+```{r fig_oc2}
+#| label: fig-oc2
+#| fig-cap: 'Scatterplot of the ambiguity index a. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc2")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc2")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc2")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc2")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc2")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc2")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc2")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc2")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+## Figure OC.3
+
+```{r fig_oc3}
+#| label: fig-oc3
+#| fig-cap: 'Scatterplot of the matching probabilities for event E1. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc3")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc3")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc3")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc3")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc3")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc3")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc3")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc3")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+## Figure OC.4
+
+```{r fig_oc4}
+#| label: fig-oc4
+#| fig-cap: 'Scatterplot of the matching probabilities for event E2. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc4")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc4")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc4")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc4")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc4")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc4")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc4")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc4")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+## Figure OC.5
+
+```{r fig_oc5}
+#| label: fig-oc5
+#| fig-cap: 'Scatterplot of the matching probabilities for event E3. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc5")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc5")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc5")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc5")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc5")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc5")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc5")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc5")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+## Figure OC.6
+
+```{r fig_oc6}
+#| label: fig-oc6
+#| fig-cap: 'Scatterplot of the matching probabilities for event E12. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc6")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc6")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc6")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc6")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc6")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc6")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc6")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc6")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+## Figure OC.7
+
+```{r fig_oc7}
+#| label: fig-oc7
+#| fig-cap: 'Scatterplot of the matching probabilities for event E13. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc7")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc7")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc7")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc7")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc7")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc7")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc7")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc7")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+
+## Figure OC.8
+
+```{r fig_oc8}
+#| label: fig-oc8
+#| fig-cap: 'Scatterplot of the matching probabilities for event E23. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc8")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc8")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc8")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc8")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc8")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc8")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc8")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc8")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+
+# Online Appendix D
+
+## Subsample 1: Good comprehension (yes or rather yes)
+
+```{r comprehension_exclusion_1}
+ex_1_N <- data[stage == 1 & str_detect(string = comprehension, pattern = "yes", negate = TRUE), .N]
+```
+
+We perceive the tasks as cognitively demanding for the experimental participants. Not understanding the tasks could have led to additional noise in the data set. To exclude this as a factor influencing our results, we excluded participants who self-reported not understanding the experiment well or rather well. In the process, we excluded `r ex_1_N` participants for this robustness check.
+
+```{r}
+#| results: asis
+#| label: tbl-OD1
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+tmp <- data[str_detect(string = comprehension, pattern = "yes", negate = FALSE)]
+
+ols_1 <- lm(formula = b ~ surprise + treated + surprise * treated,
+              data = tmp)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~tmp$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = tmp[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = tmp[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = tmp[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = tmp[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = tmp[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on b",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+```{r}
+#| results: asis
+#| label: tbl-OD2
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+ols_1 <- lm(formula = a ~ surprise + treated + surprise * treated,
+              data = tmp)
+se_1  <- coeftest(x = ols_1, 
+                  vcov = vcovCL(ols_1,
+                                cluster = ~tmp$participant.label,
+                                type = "HC1"))
+
+ols_2 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == FALSE))
+se_2  <- coeftest(x = ols_2, 
+                  vcov = vcovCL(ols_2,
+                                cluster = tmp[surprise == FALSE, participant.label],
+                                type = "HC1"))
+
+ols_3 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == TRUE))
+se_3  <- coeftest(x = ols_3, 
+                  vcov = vcovCL(ols_3,
+                                cluster = tmp[surprise == TRUE, participant.label],
+                                type = "HC1"))
+
+ols_4 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "point"))
+se_4  <- coeftest(x = ols_4, 
+                  vcov = vcovCL(ols_4,
+                                cluster = tmp[communication == "point", participant.label],
+                                type = "HC1"))
+
+ols_5 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "interval"))
+se_5  <- coeftest(x = ols_5, 
+                  vcov = vcovCL(ols_5,
+                                cluster = tmp[communication == "interval", participant.label],
+                                type = "HC1"))
+
+ols_6 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "both"))
+se_6  <- coeftest(x = ols_6, 
+                  vcov = vcovCL(ols_6,
+                                cluster = tmp[communication == "both", participant.label],
+                                type = "HC1"))
+
+
+
+se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+
+stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+          align = TRUE, 
+          se = se, 
+          p = p,   
+          title = "Linear regressions: Treatment effects on a",
+          model.names = FALSE,
+          column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE,
+          style = "qje")
+  
+rm(tmp)
+```
+
+
+## Subsample 2: No wrong answers in the control questions
+
+```{r comprehension_exclusion_2}
+ex_2_N <- data[, length(unique(participant.label))] - data[wrong_answer_1==0 & wrong_answer_2==0, length(unique(participant.label))]
+```
+
+Using a similar rationale as in subsample 1, we excluded participants who had at least one error
+in the control questions. In doing so, we removed `r ex_2_N` participants. Apart from the different exclusion criterion, the code producing the corresponding tables looks exactly the same.
+
+```{r}
+#| results: asis
+#| label: tbl-OD3
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+tmp <- data[wrong_answer_1==0 & wrong_answer_2==0]
+
+ols_1 <- lm(formula = b ~ surprise + treated + surprise * treated,
+              data = tmp)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~tmp$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = tmp[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = tmp[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = tmp[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = tmp[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = tmp[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on b",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+```{r}
+#| results: asis
+#| label: tbl-OD4
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+ols_1 <- lm(formula = a ~ surprise + treated + surprise * treated,
+              data = tmp)
+se_1  <- coeftest(x = ols_1, 
+                  vcov = vcovCL(ols_1,
+                                cluster = ~tmp$participant.label,
+                                type = "HC1"))
+
+ols_2 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == FALSE))
+se_2  <- coeftest(x = ols_2, 
+                  vcov = vcovCL(ols_2,
+                                cluster = tmp[surprise == FALSE, participant.label],
+                                type = "HC1"))
+
+ols_3 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == TRUE))
+se_3  <- coeftest(x = ols_3, 
+                  vcov = vcovCL(ols_3,
+                                cluster = tmp[surprise == TRUE, participant.label],
+                                type = "HC1"))
+
+ols_4 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "point"))
+se_4  <- coeftest(x = ols_4, 
+                  vcov = vcovCL(ols_4,
+                                cluster = tmp[communication == "point", participant.label],
+                                type = "HC1"))
+
+ols_5 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "interval"))
+se_5  <- coeftest(x = ols_5, 
+                  vcov = vcovCL(ols_5,
+                                cluster = tmp[communication == "interval", participant.label],
+                                type = "HC1"))
+
+ols_6 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "both"))
+se_6  <- coeftest(x = ols_6, 
+                  vcov = vcovCL(ols_6,
+                                cluster = tmp[communication == "both", participant.label],
+                                type = "HC1"))
+
+
+
+se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+
+stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+          align = TRUE, 
+          se = se, 
+          p = p,   
+          title = "Linear regressions: Treatment effects on a",
+          model.names = FALSE,
+          column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE,
+          style = "qje")
+  
+rm(tmp)
+```
+
+
+## Subsample 3: Survey experiment completion time 10%-90% quantile
+
+```{r}
+lo_quantile <- data[, quantile(x = completion_time, probs = 0.1)]
+hi_quantile <- data[, quantile(x = completion_time, probs = 0.9)]
+
+lo_time <- seconds_to_period(lo_quantile)
+hi_time <- seconds_to_period(hi_quantile)
+
+ex_3_N <- data[, length(unique(participant.label))] - data[completion_time > lo_quantile & completion_time < hi_quantile, length(unique(participant.label))]
+```
+
+
+We believe that excessively fast participants could introduce additional noise. We also believe that participants doing other things on the side and who may have been very slow in the experiment could cause a similar effect. As a result, we removed participants who took less than `r lo_time@minute` minutes `r lo_time@.Data` (10 percent quantile) and more than `r hi_time@minute` minutes `r hi_time@.Data` seconds (90 percent quantile). This is equivalent to a removal of `r ex_3_N` participants.
+
+Apart from the different exclusion criterion, the code producing the corresponding tables looks exactly the same.
+
+```{r}
+#| results: asis
+#| label: tbl-OD5
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+tmp <- data[completion_time > lo_quantile & completion_time < hi_quantile]
+
+ols_1 <- lm(formula = b ~ surprise + treated + surprise * treated,
+              data = tmp)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~tmp$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = tmp[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = tmp[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = tmp[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = tmp[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = tmp[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on b",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+```{r}
+#| results: asis
+#| label: tbl-OD6
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+ols_1 <- lm(formula = a ~ surprise + treated + surprise * treated,
+              data = tmp)
+se_1  <- coeftest(x = ols_1, 
+                  vcov = vcovCL(ols_1,
+                                cluster = ~tmp$participant.label,
+                                type = "HC1"))
+
+ols_2 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == FALSE))
+se_2  <- coeftest(x = ols_2, 
+                  vcov = vcovCL(ols_2,
+                                cluster = tmp[surprise == FALSE, participant.label],
+                                type = "HC1"))
+
+ols_3 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == TRUE))
+se_3  <- coeftest(x = ols_3, 
+                  vcov = vcovCL(ols_3,
+                                cluster = tmp[surprise == TRUE, participant.label],
+                                type = "HC1"))
+
+ols_4 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "point"))
+se_4  <- coeftest(x = ols_4, 
+                  vcov = vcovCL(ols_4,
+                                cluster = tmp[communication == "point", participant.label],
+                                type = "HC1"))
+
+ols_5 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "interval"))
+se_5  <- coeftest(x = ols_5, 
+                  vcov = vcovCL(ols_5,
+                                cluster = tmp[communication == "interval", participant.label],
+                                type = "HC1"))
+
+ols_6 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "both"))
+se_6  <- coeftest(x = ols_6, 
+                  vcov = vcovCL(ols_6,
+                                cluster = tmp[communication == "both", participant.label],
+                                type = "HC1"))
+
+
+
+se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+
+stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+          align = TRUE, 
+          se = se, 
+          p = p,   
+          title = "Linear regressions: Treatment effects on a",
+          model.names = FALSE,
+          column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE,
+          style = "qje")
+  
+rm(tmp)
+```
+
+
+## Subsample 4: Weakly monotonic answers $(\overline{m_s}\leq\overline{m_c})$
+
+```{r}
+violators <- data[mc < ms, unique(participant.label)]
+```
+
+In this subsample, we removed participants who violated weak monotonicity for the averaged
+single vs. combined events ($\overline{m_s}\leq\overline{m_c}$) at least once (either part 1 or part 2). This ensures that index $a$ is 1 or less than 1. @Baillon_2018a also use this robustness check. We excluded `r length(violators)` participants.
+
+Apart from the different exclusion criterion, the code producing the corresponding tables looks exactly the same.
+
+```{r}
+#| results: asis
+#| label: tbl-OD7
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+tmp <- data[!(participant.label %in% violators)]
+
+ols_1 <- lm(formula = b ~ surprise + treated + surprise * treated,
+              data = tmp)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~tmp$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = tmp[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = b ~ communication + treated + communication * treated, 
+              data = tmp,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = tmp[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = tmp[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = tmp[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = b ~ surprise + treated + surprise * treated, 
+              data = tmp,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = tmp[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on b",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+```{r}
+#| results: asis
+#| label: tbl-OD8
+
+ols_1 <- lm(formula = a ~ surprise + treated + surprise * treated,
+              data = tmp)
+se_1  <- coeftest(x = ols_1, 
+                  vcov = vcovCL(ols_1,
+                                cluster = ~tmp$participant.label,
+                                type = "HC1"))
+
+ols_2 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == FALSE))
+se_2  <- coeftest(x = ols_2, 
+                  vcov = vcovCL(ols_2,
+                                cluster = tmp[surprise == FALSE, participant.label],
+                                type = "HC1"))
+
+ols_3 <- lm(formula = a ~ communication + treated + communication * treated, 
+            data = tmp,
+            subset = (surprise == TRUE))
+se_3  <- coeftest(x = ols_3, 
+                  vcov = vcovCL(ols_3,
+                                cluster = tmp[surprise == TRUE, participant.label],
+                                type = "HC1"))
+
+ols_4 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "point"))
+se_4  <- coeftest(x = ols_4, 
+                  vcov = vcovCL(ols_4,
+                                cluster = tmp[communication == "point", participant.label],
+                                type = "HC1"))
+
+ols_5 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "interval"))
+se_5  <- coeftest(x = ols_5, 
+                  vcov = vcovCL(ols_5,
+                                cluster = tmp[communication == "interval", participant.label],
+                                type = "HC1"))
+
+ols_6 <- lm(formula = a ~ surprise + treated + surprise * treated, 
+            data = tmp,
+            subset = (communication == "both"))
+se_6  <- coeftest(x = ols_6, 
+                  vcov = vcovCL(ols_6,
+                                cluster = tmp[communication == "both", participant.label],
+                                type = "HC1"))
+
+
+
+se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+
+stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+          align = TRUE, 
+          se = se, 
+          p = p,   
+          title = "Linear regressions: Treatment effects on a",
+          model.names = FALSE,
+          column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE,
+          style = "qje")
+  
+rm(tmp)
+```
+
+
+# Online Appendix E
+
+We now consider the effects of information on so-called ambiguity neutral probabilities which have been suggested in @LiTurmunkhWakker_2019. This analysis complements the investigations on the effect on the probability equivalents for the individual events that are discussed in the main part of the paper.
+
+Ambiguity-neutral probabilities are calculated according to equation (3.3) from @LiTurmunkhWakker_2019 [p. 56] which we simplify as follows:
+
+$$
+\begin{align*}
+    p_1&=\frac{3(\overline{m_c}-\overline{m_s})+3m_1-3m_{23}+2(1-a)}{6(1-a)}\\
+    &=\frac{3(\overline{m_c}-\overline{m_s})+3m_1-3m_{23}+2(1-(3 \times (\frac{1}{3} -(\overline{m_c}-\overline{m_s}))))}{6(1-(3 \times (\frac{1}{3} -(\overline{m_c}-\overline{m_s}))))}\\
+        &=\frac{1}{2}+\frac{m_1-m_{23}}{6(\overline{m_c}-\overline{m_s})}.
+\end{align*}
+$$
+
+We calculate  $p_2$ and $p_3$ accordingly. For the following analyses, we have adjusted our sample so that we meet the assumptions of @LiTurmunkhWakker_2019, namely we have removed all participants who have at least one part with $a=1$ or violate monotonicity ($m_i\leq m_{jk}$) at least once in part 1 or part 2 (see @lst-plot).  In total, this excludes 1200 participants.
+
+The structure of the presentation of results follows the discussion in the main part of the paper.
+
+
+## Figure OE.1
+
+```{r fig_oe1}
+#| label: fig-oe1
+#| fig-cap: 'A-neutral probability $p_1$ separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note:	$^{*}$p$<$0.10, $^{**}$p$<$0.05, $^{***}$p$<$0.01, ns: not significant'
+
+top   <- plot_bars2(data = subset, response = "p1", surprise_sub = NA)
+left  <- plot_bars2(data = subset, response = "p1", surprise_sub = FALSE)
+right <- plot_bars2(data = subset, response = "p1", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+## Figure OE.2
+
+```{r fig_oe2}
+#| label: fig-oe2
+#| fig-cap: 'A-neutral probability $p_2$ separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note:	$^{*}$p$<$0.10, $^{**}$p$<$0.05, $^{***}$p$<$0.01, ns: not significant'
+
+top   <- plot_bars2(data = subset, response = "p2", surprise_sub = NA)
+left  <- plot_bars2(data = subset, response = "p2", surprise_sub = FALSE)
+right <- plot_bars2(data = subset, response = "p2", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+## Figure OE.3
+
+```{r fig_oe3}
+#| label: fig-oe3
+#| fig-cap: 'A-neutral probability $p_3$ separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note:	$^{*}$p$<$0.10, $^{**}$p$<$0.05, $^{***}$p$<$0.01, ns: not significant'
+
+top   <- plot_bars2(data = subset, response = "p3", surprise_sub = NA)
+left  <- plot_bars2(data = subset, response = "p3", surprise_sub = FALSE)
+right <- plot_bars2(data = subset, response = "p3", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+## Table OE.1
+
+```{r tbl-OE1}
+#| results: asis
+#| label: tbl-OE1
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+ols_1 <- lm(formula = p1 ~ surprise + treated + surprise * treated,
+              data = subset)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = subset[, participant.label],
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = p1 ~ communication + treated + communication * treated, 
+              data = subset,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = subset[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = p1 ~ communication + treated + communication * treated, 
+              data = subset,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = subset[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = p1 ~ surprise + treated + surprise * treated, 
+              data = subset,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = subset[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = p1 ~ surprise + treated + surprise * treated, 
+              data = subset,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = subset[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = p1 ~ surprise + treated + surprise * treated, 
+              data = subset,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = subset[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on p1",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+
+## Table OE.2
+
+```{r tbl-OE2}
+#| results: asis
+#| label: tbl-OE2
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+ols_1 <- lm(formula = p2 ~ surprise + treated + surprise * treated,
+              data = subset)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = subset[, participant.label],
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = p2 ~ communication + treated + communication * treated, 
+              data = subset,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = subset[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = p2 ~ communication + treated + communication * treated, 
+              data = subset,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = subset[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = p2 ~ surprise + treated + surprise * treated, 
+              data = subset,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = subset[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = p2 ~ surprise + treated + surprise * treated, 
+              data = subset,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = subset[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = p2 ~ surprise + treated + surprise * treated, 
+              data = subset,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = subset[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on p2",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+
+## Table OE.3
+
+```{r tbl-OE3}
+#| results: asis
+#| label: tbl-OE3
+#| tbl-cap: "Note:∗p<0.1; ∗∗p<0.05; ∗∗∗p<0.01. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)"
+
+ols_1 <- lm(formula = p3 ~ surprise + treated + surprise * treated,
+              data = subset)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = subset[, participant.label],
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = p3 ~ communication + treated + communication * treated, 
+              data = subset,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = subset[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = p3 ~ communication + treated + communication * treated, 
+              data = subset,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = subset[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = p3 ~ surprise + treated + surprise * treated, 
+              data = subset,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = subset[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = p3 ~ surprise + treated + surprise * treated, 
+              data = subset,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = subset[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = p3 ~ surprise + treated + surprise * treated, 
+              data = subset,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = subset[communication == "both", participant.label],
+                                  type = "HC1"))
+  
+  
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = "Linear regressions: Treatment effects on p3",
+            model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE,
+            style = "qje")
+```
+
+
+## Table OE.4
+
+
+```{r T-OE4-Regressions}
+
+ols_6_1 <- lm(formula = euclidian_distance ~ surprise, 
+            data = wide_subset)
+se_6_1  <- coeftest(ols_6_1, vcov = vcovHC(ols_6_1, type = "HC1"))
+
+ols_6_2 <- lm(formula = euclidian_distance ~ communication, 
+            data = wide_subset,
+            subset = (surprise == FALSE))
+se_6_2  <- coeftest(ols_6_2, vcov = vcovHC(ols_6_2, type = "HC1"))
+
+ols_6_3 <- lm(formula = euclidian_distance ~ communication, 
+            data = wide_subset,
+            subset = (surprise == TRUE))
+se_6_3  <- coeftest(ols_6_3, vcov = vcovHC(ols_6_3, type = "HC1"))
+
+ols_6_4 <- lm(formula = euclidian_distance ~ surprise, 
+            data = wide_subset,
+            subset = (communication == "point"))
+se_6_4  <- coeftest(ols_6_4, vcov = vcovHC(ols_6_4, type = "HC1"))
+
+ols_6_5 <- lm(formula = euclidian_distance ~ surprise, 
+            data = wide_subset,
+            subset = (communication == "interval"))
+se_6_5  <- coeftest(ols_6_5, vcov = vcovHC(ols_6_5, type = "HC1"))
+
+ols_6_6 <- lm(formula = euclidian_distance ~ surprise, 
+            data = wide_subset,
+            subset = (communication == "both"))
+se_6_6  <- coeftest(ols_6_6, vcov = vcovHC(ols_6_6, type = "HC1"))
+```
+
+```{r regression_output_table_OE4}
+#| results: asis
+
+se_6 <- list(se_6_1[,2], se_6_2[,2], se_6_3[,2], se_6_4[,2], se_6_5[,2], se_6_6[,2])
+p_6  <- list(se_6_1[,4], se_6_2[,4], se_6_3[,4], se_6_4[,4], se_6_5[,4], se_6_6[,4])
+
+stargazer(ols_6_1, ols_6_2, ols_6_3, ols_6_4, ols_6_5, ols_6_6, 
+          align = TRUE, 
+          se = se_6,
+          p = p_6,   
+          title = "Linear regressions: Treatment effects on Euclidian distance between vector of matching probabilities in part 1 vs. part 2",
+          model.names = FALSE,
+            column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+            covariate.labels = c("contradiction", "both", "interval",  "Constant"),
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE,
+          style = "qje")
+
+```
+
+## Figure OE.4

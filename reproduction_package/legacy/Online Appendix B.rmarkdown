@@ -1,0 +1,340 @@
+---
+title: 'Online Appendix B'
+subtitle: 'Ambiguity attitudes and surprises'
+author:
+- name: Aljoscha Minnich
+  email: aljoscha.minnich@uni-hamburg.de
+  orcid: 0000-0001-5224-0143
+  corresponding: false
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+- name: Hauke Roggenkamp
+  email: Hauke.Roggenkamp@unisg.ch
+  orcid: 0009-0005-5176-4718
+  corresponding: false
+  affiliations:
+    - name: Institute of Behavioral Science and Technology, University of St. Gallen
+      address: Torstrasse 25
+      city: St. Gallen
+      country: Switzerland
+      postal-code: 9000
+    - name: Faculty of Economics & Social Sciences, Helmut-Schmidt-University
+      address: Holstenhofweg 85
+      city: Hamburg
+      country: Germany
+      postal_code: 22043
+- name: Andreas Lange
+  email: andreas.lange@uni-hamburg.de
+  corresponding: true
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+date: now
+date-format: long
+format: 
+  html:
+    embed-resources: true
+    theme: cosmo
+    fig-height: 8
+toc: true
+bibliography: ../biblio.bib
+---
+
+
+------------------------------------------------------------------------
+
+This document explains how to reproduce the figures presented in the paper.
+
+# Install Packages
+
+We install the following packages using the `groundhog` package manager to increase computational reproducibility.
+
+
+```{r install_packages}
+#| output: false
+
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+    library("groundhog")
+}
+
+pkgs <- c("magrittr", "data.table", "stringr", "lubridate", "knitr", "glue",
+          "sandwich", "lmtest",
+          "ggplot2", "ggpubr", "rstatix", "patchwork")
+
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2023-09-25")
+```
+
+# Read Data
+
+
+```{r read_data}
+# data <- data.table::fread(file = "../data/processed/full.csv")
+data <- readRDS(file="../data/processed/full.Rda")
+```
+
+```{r factorize}
+data[, communication := as.factor(communication)]
+data[, communication := factor(communication, levels = c("point", "both","interval"))]
+data[, stage := as.factor(stage)]
+data[, stage := factor(stage, levels = c("1", "2"))]
+```
+
+
+
+# Figure OB1
+
+To create @fig-ob1 (and the other figures), we create a wrapper function that we can call several times. As all the other figures presented in this document, @fig-ob1 consists of three panels, `top`, `left`, and `right` that are relatively similar. We thus, save both space and sources of error by creating a wrapper function `plot_bars()` that creates bar plots and annotates them with test statistics.
+
+
+```{r bar_function}
+
+plot_bars <- function(response = "E", surprise_sub = NA, limits = ylim(-0.1, 100.1)){
+  
+  if(response == "E1"|response == "E2"|response == "E3"){
+      y_1 = 73
+      y_2 = 55
+    } else {
+      y_1 = 73
+      y_2 = 63
+    }
+  
+  if(!is.na(surprise_sub)){
+    # Plot bottom panels
+    tmp <- data[surprise == surprise_sub]
+    names(tmp)[names(tmp) == response] <- 'outcome'
+    
+    if(surprise_sub){
+      title <- "Surprising Condition"
+    } else {
+      title <- "Confirming Condition"
+    }
+    
+    test_stats_1 <- tmp %>% 
+      group_by(communication) %>%
+      wilcox_test(formula = outcome ~ stage,
+                  paired = T) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    
+    
+    test_stats_2 <- tmp %>% 
+      group_by(stage) %>%
+      wilcox_test(formula = outcome ~ communication) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    test_stats_2 <- test_stats_2[stage == 2]
+    
+    plot_bottom <- ggplot(data = tmp,
+           mapping = aes(x = as.factor(communication),
+                         y = outcome)) +
+        geom_bar(aes(fill = stage),
+                 position = "dodge", 
+                 stat = "summary", 
+                 fun = "mean") + 
+      limits +
+      scale_fill_manual(values=c("black", "gray")) +
+      theme_classic() +
+      stat_pvalue_manual(data = test_stats_2,
+                         label = "{p} ({p.adj.signif})", 
+                         step.group.by = "stage",
+                         tip.length = 0, 
+                         step.increase = 0.1, 
+                         y.position = y_1) +
+      stat_pvalue_manual(data = test_stats_1,
+                         label = "{p} ({p.adj.signif})",
+                         y.position = y_2,
+                         tip.length = 0,
+                         x = "communication") +
+      labs(title = title,
+           x = "Communication",
+           y = glue("{response}"))
+    
+    rm(tmp)
+    
+    plot_bottom
+  } else {
+    # Plot the top panel
+    tmp <- data
+    names(tmp)[names(tmp) == response] <- 'outcome'
+    
+    title <- "Both Conditions"
+    
+    test_stats_1 <- tmp %>% 
+      group_by(surprise) %>%
+      wilcox_test(formula = outcome ~ stage,
+                  paired = T) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    
+    
+    test_stats_2 <- tmp %>% 
+      group_by(stage) %>%
+      wilcox_test(formula = outcome ~ surprise) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    test_stats_2 <- test_stats_2[stage == 2]
+    
+    
+    plot_top <- ggplot(data = tmp,
+           mapping = aes(x = as.factor(surprise),
+                         y = outcome)) +
+        geom_bar(aes(fill = stage),
+                 position = "dodge", 
+                 stat = "summary", 
+                 fun = "mean") + 
+      limits +
+      scale_fill_manual(values=c("black", "gray")) +
+      theme_classic() +
+      stat_pvalue_manual(data = test_stats_2,
+                         label = "{p} ({p.adj.signif})", 
+                         step.group.by = "stage",
+                         tip.length = 0, 
+                         step.increase = 0.1, 
+                         y.position = y_1) +
+      stat_pvalue_manual(data = test_stats_1,
+                         label = "{p} ({p.adj.signif})",
+                         y.position = y_2,
+                         tip.length = 0,
+                         x = "surprise") +
+      labs(title = title,
+           x = " Surprising Condition",
+           y = glue(" {response}"))
+    
+    rm(tmp)
+    
+    plot_top
+  }
+}
+
+```
+
+```{r fig_ob1}
+#| label: fig-OB1
+#| fig-cap: 'Means of the matching probabilities for event E1 separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note: ∗p<0.10, ∗∗p<0.05, ∗∗∗p<0.01, ns: not significant'
+
+top   <- plot_bars(response = "E1", surprise_sub = NA)
+left  <- plot_bars(response = "E1", surprise_sub = FALSE)
+right <- plot_bars(response = "E1", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+
+# Figure OB.2
+
+Next, we use the wrapper function again but visualize another outcome using the `response == E2` argument.
+
+
+```{r fig_ob2}
+#| label: fig-OB2
+#| fig-cap: 'Means of the matching probabilities for event E2 separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note: ∗p<0.10, ∗∗p<0.05, ∗∗∗p<0.01, ns: not significant'
+
+top   <- plot_bars(response = "E2", surprise_sub = NA)
+left  <- plot_bars(response = "E2", surprise_sub = FALSE)
+right <- plot_bars(response = "E2", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+
+
+# Figure OB.3
+
+Next, we use the wrapper function again but visualize another outcome using the `response == E3` argument.
+
+
+```{r fig_ob3}
+#| label: fig-OB3
+#| fig-cap: 'Means of the matching probabilities for event E3 separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note: ∗p<0.10, ∗∗p<0.05, ∗∗∗p<0.01, ns: not significant'
+
+top   <- plot_bars(response = "E3", surprise_sub = NA)
+left  <- plot_bars(response = "E3", surprise_sub = FALSE)
+right <- plot_bars(response = "E3", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+
+# Figure OB.4
+
+Next, we use the wrapper function again but visualize another outcome using the `response == E12` argument.
+
+
+```{r fig_ob4}
+#| label: fig-OB4
+#| fig-cap: 'Means of the matching probabilities for event E12 separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note: ∗p<0.10, ∗∗p<0.05, ∗∗∗p<0.01, ns: not significant'
+
+top   <- plot_bars(response = "E12", surprise_sub = NA)
+left  <- plot_bars(response = "E12", surprise_sub = FALSE)
+right <- plot_bars(response = "E12", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+
+
+# Figure OB.5
+
+Next, we use the wrapper function again but visualize another outcome using the `response == E13` argument.
+
+
+```{r fig_ob5}
+#| label: fig-OB5
+#| fig-cap: 'Means of the matching probabilities for event E13 separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note: ∗p<0.10, ∗∗p<0.05, ∗∗∗p<0.01, ns: not significant'
+
+top   <- plot_bars(response = "E13", surprise_sub = NA)
+left  <- plot_bars(response = "E13", surprise_sub = FALSE)
+right <- plot_bars(response = "E13", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+
+
+# Figure OB.6
+
+Next, we use the wrapper function again but visualize another outcome using the `response == E23` argument.
+
+
+```{r fig_ob6}
+#| label: fig-OB6
+#| fig-cap: 'Means of the matching probabilities for event E23 separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note: ∗p<0.10, ∗∗p<0.05, ∗∗∗p<0.01, ns: not significant'
+
+top   <- plot_bars(response = "E23", surprise_sub = NA)
+left  <- plot_bars(response = "E23", surprise_sub = FALSE)
+right <- plot_bars(response = "E23", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+

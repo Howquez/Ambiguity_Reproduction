@@ -1,0 +1,659 @@
+---
+title: 'Online Appendix E'
+subtitle: 'Ambiguity attitudes and surprises'
+author:
+- name: Aljoscha Minnich
+  email: aljoscha.minnich@uni-hamburg.de
+  orcid: 0000-0001-5224-0143
+  corresponding: false
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+- name: Hauke Roggenkamp
+  email: Hauke.Roggenkamp@unisg.ch
+  orcid: 0009-0005-5176-4718
+  corresponding: false
+  affiliations:
+    - name: Institute of Behavioral Science and Technology, University of St. Gallen
+      address: Torstrasse 25
+      city: St. Gallen
+      country: Switzerland
+      postal-code: 9000
+    - name: Faculty of Economics & Social Sciences, Helmut-Schmidt-University
+      address: Holstenhofweg 85
+      city: Hamburg
+      country: Germany
+      postal_code: 22043
+- name: Andreas Lange
+  email: andreas.lange@uni-hamburg.de
+  corresponding: true
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+date: now
+date-format: long
+format: 
+  html:
+    embed-resources: true
+    theme: cosmo
+    fig-height: 8
+toc: true
+bibliography: ../biblio.bib
+---
+
+------------------------------------------------------------------------
+
+This document explains how to reproduce the analyses presented in Online Appendix E.
+
+```{r install_packages}
+#| output: false
+
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+    library("groundhog")
+}
+
+pkgs <- c("magrittr", "data.table", "stringr", "lubridate", "knitr", "glue",
+          "sandwich", "lmtest",
+          "ggplot2", "ggpubr", "rstatix", "patchwork","sjPlot", "stargazer")
+
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2023-09-25")
+```
+
+# Read Data
+
+```{r read_data}
+# data <- data.table::fread(file = "../data/processed/full.csv")
+data <- readRDS(file="../data/processed/full.Rda")
+```
+
+```{r factorize}
+data[, communication := as.factor(communication)]
+data[, communication := factor(communication, levels = c("point", "both","interval"))]
+data[, stage := as.factor(stage)]
+data[, stage := factor(stage, levels = c("1", "2"))]
+```
+
+# Subsets to fulfill the assumptions
+
+```{r subset}
+data<-subset(data,data$a!=1&data$E12>=data$E1 & data$E13>=data$E1 &   data$E12>=data$E2 & data$E23>=data$E2 & data$E23>=data$E3 & data$E13>=data$E3)
+data<-subset(data,duplicated(data$participant.label)|duplicated(data$participant.label,fromLast = TRUE))
+
+```
+
+# Defining subjective probability measure
+
+```{r probabilites}
+data$m1<-data$E1/100
+data$m2<-data$E2/100
+data$m3<-data$E3/100
+data$m12<-data$E12/100
+data$m13<-data$E13/100
+data$m23<-data$E23/100
+
+data$p1<-(data$m1-data$m23)/6/(data$mc-data$ms)+0.5
+data$p2<-(data$m2-data$m13)/6/(data$mc-data$ms)+0.5
+data$p3<-(data$m3-data$m12)/6/(data$mc-data$ms)+0.5
+
+```
+
+# Figure OE.1, OE.2, OE.3
+
+To create @fig-oe1 (and `fig-oe2` and `fig-oe3`), we create a wrapper function that we can call several times. As all the other figures presented in this document, @fig-oe1 consists of three panels, `top`, `left`, and `right` that are relatively similar. We thus, save both space and sources of error by creating a wrapper function `plot_bars()` that creates bar plots and annotates them with test statistics.
+
+```{r bar_function}
+
+plot_bars <- function(response = "p", surprise_sub = NA, limits = ylim(-0.05, 1.02)){
+  
+  if(response == "p1"| response =="p2"| response =="p3"){
+      y_1 = 0.6
+      y_2 = 0.4
+    } else {
+      y_1 = 1.4
+      y_2 = 1
+    }
+  
+  
+  if(!is.na(surprise_sub)){
+    # Plot bottom panels
+    tmp <- data[surprise == surprise_sub]
+    names(tmp)[names(tmp) == response] <- 'outcome'
+    
+    if(surprise_sub){
+      title <- "Surprising Condition"
+    } else {
+      title <- "Confirming Condition"
+    }
+    
+    test_stats_1 <- tmp %>% 
+      group_by(communication) %>%
+      wilcox_test(formula = outcome ~ stage,
+                  paired = T) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    
+    
+    test_stats_2 <- tmp %>% 
+      group_by(stage) %>%
+      wilcox_test(formula = outcome ~ communication) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    test_stats_2 <- test_stats_2[stage == 2]
+    
+    plot_bottom <- ggplot(data = tmp,
+           mapping = aes(x = as.factor(communication),
+                         y = outcome)) +
+        geom_bar(aes(fill = stage),
+                 position = "dodge", 
+                 stat = "summary", 
+                 fun = "mean") + 
+      limits +
+      scale_fill_manual(values=c("black", "gray")) +
+      theme_classic() +
+      stat_pvalue_manual(data = test_stats_2,
+                         label = "{p} ({p.adj.signif})", 
+                         step.group.by = "stage",
+                         tip.length = 0, 
+                         step.increase = 0.1, 
+                         y.position = y_1) +
+      stat_pvalue_manual(data = test_stats_1,
+                         label = "{p} ({p.adj.signif})",
+                         y.position = y_2,
+                         tip.length = 0,
+                         x = "communication") +
+      labs(title = title,
+           x = "Communication",
+           y = glue("{response}"))
+    
+    rm(tmp)
+    
+    plot_bottom
+  } else {
+    # Plot the top panel
+    tmp <- data
+    names(tmp)[names(tmp) == response] <- 'outcome'
+    
+    title <- "Both Conditions"
+    
+    test_stats_1 <- tmp %>% 
+      group_by(surprise) %>%
+      wilcox_test(formula = outcome ~ stage,
+                  paired = T) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    
+    
+    test_stats_2 <- tmp %>% 
+      group_by(stage) %>%
+      wilcox_test(formula = outcome ~ surprise) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    test_stats_2 <- test_stats_2[stage == 2]
+    
+    
+    plot_top <- ggplot(data = tmp,
+           mapping = aes(x = as.factor(surprise),
+                         y = outcome)) +
+        geom_bar(aes(fill = stage),
+                 position = "dodge", 
+                 stat = "summary", 
+                 fun = "mean") + 
+      limits +
+      scale_fill_manual(values=c("black", "gray")) +
+      theme_classic() +
+      stat_pvalue_manual(data = test_stats_2,
+                         label = "{p} ({p.adj.signif})", 
+                         step.group.by = "stage",
+                         tip.length = 0, 
+                         step.increase = 0.1, 
+                         y.position = y_1) +
+      stat_pvalue_manual(data = test_stats_1,
+                         label = "{p} ({p.adj.signif})",
+                         y.position = y_2,
+                         tip.length = 0,
+                         x = "surprise") +
+      labs(title = title,
+           x = " Surprising Condition",
+           y = glue("{response}"))
+    
+    rm(tmp)
+    
+    plot_top
+  }
+}
+
+```
+
+```{r fig_1}
+#| label: fig-oe1
+#| fig-cap: 'A-neutral probability $p_1$ separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note:	$^{*}$p$<$0.10, $^{**}$p$<$0.05, $^{***}$p$<$0.01, ns: not significant'
+
+top   <- plot_bars(response = "p1", surprise_sub = NA)
+left  <- plot_bars(response = "p1", surprise_sub = FALSE)
+right <- plot_bars(response = "p1", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+```{r fig_2}
+#| label: fig-oe2
+#| fig-cap: 'A-neutral probability $p_2$ separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note:	$^{*}$p$<$0.10, $^{**}$p$<$0.05, $^{***}$p$<$0.01, ns: not significant'
+
+top   <- plot_bars(response = "p2", surprise_sub = NA)
+left  <- plot_bars(response = "p2", surprise_sub = FALSE)
+right <- plot_bars(response = "p2", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+```{r fig_3}
+#| label: fig-oe3
+#| fig-cap: 'A-neutral probability $p_3$ separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note:	$^{*}$p$<$0.10, $^{**}$p$<$0.05, $^{***}$p$<$0.01, ns: not significant'
+
+top   <- plot_bars(response = "p3", surprise_sub = NA)
+left  <- plot_bars(response = "p3", surprise_sub = FALSE)
+right <- plot_bars(response = "p3", surprise_sub = TRUE)
+
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+# Regressions
+
+```{r covariates}
+demographics <- c("age_35_52","age_53_plus","female", "high_education", "high_income", "married", "parentship")
+
+all <- c(demographics, "high_temperature","high_usage","high_general_risk","high_weather_risk","high_accuracy","high_credibility")
+```
+
+```{r wrapper_function}
+event_regressions <- function(event = "p1"){
+  ols_1 <- lm(formula = reformulate(c("surprise", "treated", "surprise*treated"), response = event),
+              data = data)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~data$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = reformulate(c("communication", "treated", "communication*treated"), response = event), 
+              data = data,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = data[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = reformulate(c("communication", "treated", "communication*treated"), response = event), 
+              data = data,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = data[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = reformulate(c("surprise", "treated", "surprise*treated"), response = event), 
+              data = data,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = data[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = reformulate(c("surprise", "treated", "surprise*treated"), response = event), 
+              data = data,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = data[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = reformulate(c("surprise", "treated", "surprise*treated"), response = event), 
+              data = data,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = data[communication == "both", participant.label],
+                                  type = "HC1"))
+
+
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = paste0("Linear regressions: Treatment effects on ", event),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE)
+}
+```
+
+## p1
+
+```{r p1}
+#| results: asis
+event_regressions(event = "p1")
+```
+
+## p2
+
+```{r p2}
+#| results: asis
+event_regressions(event = "p2")
+```
+
+## p3
+
+```{r p3}
+#| results: asis
+event_regressions(event = "p3")
+```
+
+# Figure OE.4
+
+
+The corresponding data stems from many OLS regressions and are computed in for-loops. Even though the code differs slightly, it is very repetitive between the three panels, which is why we only explain the top panel
+
+
+## Top Panel
+
+Before calculating the data based on OLS regressions, we specify three different models: `none` represents only treatment variables, `demographics` extends the former by adding demographic variables, and `all` extends the former two by also adding all remaining covariates.
+
+```{r covariates_top}
+none <- c("surprise", "treated", "surprise*treated")
+
+demographics <- c(none, "age_35_52","age_53_plus","female", "high_education", "high_income", "married", "parentship")
+
+all <- c(demographics, "high_temperature","high_usage","high_general_risk","high_weather_risk","high_accuracy","high_credibility")
+```
+
+Next, we run a nested loop that iterates through all three models and within these models through p1,p2,p3. From these ols regressions, we compute clustered standard errors using the `{{sandwich}}` and `{{lmtest}}` package. The resuling data is stored in a temporary data.table that is appended to an initially empty data.table called `ci_top`.
+
+```{r data_top}
+ci_top <- data.table()
+for(RHS in c("none", "demographics", "all")){
+  for(LHS in c("p1", "p2","p3")){
+    ols <- lm(formula = reformulate(termlabels = get(RHS), 
+                                    response = LHS),
+              data = data)
+    
+    tmp <- coefci(x = ols,
+                  parm = "surpriseTRUE:treatedTRUE",
+                  vcov = vcovCL(x = ols, 
+                                cluster = data$participant.label, 
+                                type = "HC1"),
+                  level = 0.95) %>% 
+      data.table(model = RHS, outcome = LHS)
+    tmp[, center := (`2.5 %` + `97.5 %`)/2]
+    
+    ci_top <- rbind(ci_top, tmp)
+  }
+}
+```
+
+The result looks as follows. The data.table provides a column for the 2.5% and 97.5% confidence interval, the center of the two, as well as the ols specification as presented in `model` and `outcome`.
+
+```{r}
+ci_top %>% head(n = 7) %>% kable()
+```
+
+Finally, we plot this data set (`ci_top`) using the `{{ggplot2}}` package. The resulting object is stored as `top` and will be assembled together with the other two panels.
+
+```{r viz_top}
+top <- ggplot(data = ci_top,
+       mapping = aes(y = outcome)) +
+  geom_pointrange(mapping = aes(x = center,
+                                y = outcome,
+                                xmin = `2.5 %`,
+                                xmax = `97.5 %`,
+                                shape = factor(model)),
+                  data = ci_top,
+                  position = position_dodge(width = 0.4),
+                  fatten=5,
+                  alpha=.8) +
+   scale_y_discrete( limits=c("p3","p2", "p1"))+
+  geom_vline(xintercept = 0, 
+             color = "red", 
+             alpha = 0.66, 
+             show.legend = FALSE) +
+  theme_bw() +
+  labs(#title = "(a) Effect of contradiction (relative to confirmation)",
+       y = "Event", 
+       x = "Estimate",
+       shape="Control variables")
+```
+
+## Left Panel
+
+```{r covariates_left}
+none <- c("communication", "treated", "communication*treated")
+
+demographics <- c(none, "age_35_52","age_53_plus","female", "high_education", "high_income", "married", "parentship")
+
+all <- c(demographics, "high_temperature","high_usage","high_general_risk","high_weather_risk","high_accuracy","high_credibility")
+```
+
+```{r data_left}
+ci_left <- data.table()
+for(RHS in c("none", "demographics", "all")){
+  for(LHS in c("p1", "p2","p3")){
+    ols <- lm(formula = reformulate(termlabels = get(RHS), 
+                                    response = LHS),
+              data = data,
+              subset = (surprise == FALSE))
+    for(communication in c("interval", "both")){
+      tmp <- coefci(x = ols,
+                    parm = paste0("communication", communication, ":treatedTRUE"),
+                    vcov = vcovCL(x = ols, 
+                                  cluster = data[surprise == FALSE,
+                                                 participant.label], 
+                                  type = "HC1"),
+                    level = 0.95) %>% 
+        data.table(model = RHS, outcome = paste0(LHS, " (", communication, ")"))
+      tmp[, center := (`2.5 %` + `97.5 %`)/2]
+      
+      ci_left <- rbind(ci_left, tmp)
+    }
+  }
+}
+```
+
+```{r}
+ci_left %>% head(n = 7) %>% kable()
+```
+
+```{r viz_left}
+left <- ggplot(data = ci_left,
+       mapping = aes(y = outcome)) +
+  geom_pointrange(mapping = aes(x = center,
+                                y = outcome,
+                                xmin = `2.5 %`,
+                                xmax = `97.5 %`,
+                                shape = factor(model)),
+                  data = ci_left,
+                  position = position_dodge(width = 0.4),
+                  fatten=5,
+                  alpha=.8) +
+  scale_y_discrete( limits=c("p3 (interval)","p3 (both)","p2 (interval)","p2 (both)", "p1 (interval)","p1 (both)"))+
+  geom_vline(xintercept = 0, 
+             color = "red", 
+             alpha = 0.66, 
+             show.legend = FALSE) +
+  theme_bw() +
+  labs(#title = "(b) Effect of information treatments (both, interval) relative to best guess, confirmation treatments",
+       y = "Event", 
+       x = "Estimate",
+       shape="Control variables")
+```
+
+## Right Panel
+
+```{r data_right}
+ci_right <- data.table()
+for(RHS in c("none", "demographics", "all")){
+  for(LHS in c("p1", "p2","p3")){
+    ols <- lm(formula = reformulate(termlabels = get(RHS), 
+                                    response = LHS),
+              data = data,
+              subset = (surprise == TRUE))
+    for(communication in c("interval", "both")){
+      tmp <- coefci(x = ols,
+                    parm = paste0("communication", communication, ":treatedTRUE"),
+                    vcov = vcovCL(x = ols, 
+                                  cluster = data[surprise == TRUE,
+                                                 participant.label], 
+                                  type = "HC1"),
+                    level = 0.95) %>% 
+        data.table(model = RHS, outcome = paste0(LHS, " (", communication, ")"))
+      tmp[, center := (`2.5 %` + `97.5 %`)/2]
+      
+      ci_right <- rbind(ci_right, tmp)
+    }
+  }
+}
+```
+
+```{r}
+ci_right %>% head(n = 7) %>% kable()
+```
+
+```{r viz_right}
+right <- ggplot(data = ci_right,
+       mapping = aes(y = outcome)) +
+  geom_pointrange(mapping = aes(x = center,
+                                y = outcome,
+                                xmin = `2.5 %`,
+                                xmax = `97.5 %`,
+                                shape = factor(model)),
+                  data = ci_right,
+                  position = position_dodge(width = 0.4),
+                  fatten=5,
+                  alpha=.8) +
+  scale_y_discrete( limits=c("p3 (interval)","p3 (both)","p2 (interval)","p2 (both)", "p1 (interval)","p1 (both)"), position = "right")+
+  geom_vline(xintercept = 0, 
+             color = "red", 
+             alpha = 0.66, 
+             show.legend = FALSE) +
+  theme_bw() +
+  labs(#title = "(c) Effect of information treatments (both, interval) relative to best guess, contradiction treatments",
+       y = "Event", 
+       x = "Estimate",
+       shape="Control variables") 
+```
+
+## Assemble Top, Left and Right Panels
+
+As before, we use the `{{patchwork}}` package to assmble the plot objects.
+
+```{r fig_3}
+#| label: fig-3
+#| fig-cap: 'Treatment effects of regression equation (1) with dependent variables p1,p2,and p3. Estimators with 95% confidence intervals. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020).'
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+
+# Table OE.4
+
+Calculating the Euclidian distance for the ambiguity neutral probabilities:
+```{r euclidian distance}
+ful1<-subset(data,data$stage==1)
+ful2<-subset(data,data$stage==2)
+
+cols <- c("participant.label", "p1","p2","p3")
+ful1 <- ful1[, ..cols]
+ful2 <- ful2[, ..cols]
+
+ful<-merge(ful1,ful2,by="participant.label")
+ful$ed<-sqrt((ful$p1.x-ful$p1.y)^2+(ful$p2.x-ful$p2.y)^2+(ful$p3.x-ful$p3.y)^2)
+cols2 <- c("participant.label", "ed")
+ful<-ful[, ..cols2]
+
+data$ed<-NULL
+data<-merge(data,ful,by="participant.label")
+
+
+```
+
+
+
+```{r}
+ols_6_1 <- lm(formula = ed ~ surprise, 
+            data = data,
+            subset = (stage == 2))
+se_6_1  <- coeftest(ols_6_1, vcov = vcovHC(ols_6_1, type = "HC1"))
+
+ols_6_2 <- lm(formula = ed ~ communication, 
+            data = data,
+            subset = (stage == 2 & surprise == FALSE))
+se_6_2  <- coeftest(ols_6_2, vcov = vcovHC(ols_6_2, type = "HC1"))
+
+ols_6_3 <- lm(formula = ed ~ communication, 
+            data = data,
+            subset = (stage == 2 & surprise == TRUE))
+se_6_3  <- coeftest(ols_6_3, vcov = vcovHC(ols_6_3, type = "HC1"))
+
+ols_6_4 <- lm(formula = ed ~ surprise, 
+            data = data,
+            subset = (stage == 2 & communication == "point"))
+se_6_4  <- coeftest(ols_6_4, vcov = vcovHC(ols_6_4, type = "HC1"))
+
+ols_6_5 <- lm(formula = ed ~ surprise, 
+            data = data,
+            subset = (stage == 2 & communication == "interval"))
+se_6_5  <- coeftest(ols_6_5, vcov = vcovHC(ols_6_5, type = "HC1"))
+
+ols_6_6 <- lm(formula = ed ~ surprise, 
+            data = data,
+            subset = (stage == 2 & communication == "both"))
+se_6_6  <- coeftest(ols_6_6, vcov = vcovHC(ols_6_6, type = "HC1"))
+```
+
+```{r regression_output_table_OE4}
+#| results: asis
+
+se_6 <- list(se_6_1[,2], se_6_2[,2], se_6_3[,2], se_6_4[,2], se_6_5[,2], se_6_6[,2])
+p_6  <- list(se_6_1[,4], se_6_2[,4], se_6_3[,4], se_6_4[,4], se_6_5[,4], se_6_6[,4])
+
+stargazer(ols_6_1, ols_6_2, ols_6_3, ols_6_4, ols_6_5, ols_6_6, 
+          align = TRUE, 
+          se = se_6,
+          p = p_6,   
+          title = "Linear regressions: Treatment effects on Euclidian distance between vector of matching probabilities in part 1 vs. part 2",
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE)
+
+```
+

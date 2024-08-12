@@ -1,0 +1,421 @@
+---
+title: 'Pre-Processing'
+subtitle: 'Ambiguity attitudes and surprises'
+author:
+- name: Aljoscha Minnich
+  email: aljoscha.minnich@uni-hamburg.de
+  orcid: 0000-0001-5224-0143
+  corresponding: false
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+- name: Hauke Roggenkamp
+  email: Hauke.Roggenkamp@unisg.ch
+  orcid: 0009-0005-5176-4718
+  corresponding: false
+  affiliations:
+    - name: Institute of Behavioral Science and Technology, University of St. Gallen
+      address: Torstrasse 25
+      city: St. Gallen
+      country: Switzerland
+      postal-code: 9000
+    - name: Faculty of Economics & Social Sciences, Helmut-Schmidt-University
+      address: Holstenhofweg 85
+      city: Hamburg
+      country: Germany
+      postal_code: 22043
+- name: Andreas Lange
+  email: andreas.lange@uni-hamburg.de
+  corresponding: true
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+date: now
+date-format: long
+format: 
+  html:
+    embed-resources: true
+    theme: cosmo
+toc: true
+bibliography: ../biblio.bib
+---
+
+---
+
+This document explains how to process the raw data into a tidy format. We assume familiarity with our paper _(Ambiguity attitudes and surprises)_ and recommend to also read @Baillon_2018a to better understand the method we apply in this document.
+
+
+# Session Info
+
+```{r session_info}
+sessionInfo()
+```
+
+
+# Install Packages
+
+We install the following packages using the `groundhog` package manager to increase computational reproducibility.
+
+```{r install_packages}
+#| output: false
+
+options(repos = c(CRAN = "https://cran.r-project.org")) 
+
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+    library("groundhog")
+}
+
+pkgs <- c("magrittr", "data.table", "stringr", "lubridate", "glue", "knitr")
+
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2023-09-25")
+```
+
+# Read Data
+
+We read two data files. First, `raw`, that is, a raw data set containing all variables defined in [@oTree]. This is the data we are most interested in as it contains all of our behavioral measures [see @Baillon_2018a] and self-reports.^[Note that we removed three variables to maintain anonymity of participants: their reported zip codes as well as two open-text fields rather unrelated to this study.] Second, `time_spent` describes how much time each participant spent on a given page of the online experiment.
+
+```{r read_data}
+raw <- data.table::fread(file = "../data/raw/all_apps_wide_2021-09-15.csv",
+                         fill = TRUE)
+
+time_spent <- data.table::fread(file = "../data/raw/PageTimes-2021-09-15.csv")
+```
+
+# Exclusion
+
+We drop several rows of the `raw` data based on two conditions:
+
+1. We only want to keep observations that finished the survey (i.e., they reached the `_max_page_index`).
+2. We want to exclude rows created during testing and only keep those, where the `participant.label` is a 32-character alpha-numeric string provided by the sample provider.
+
+```{r exclusion}
+DT <- raw[participant._index_in_pages == participant._max_page_index & 
+            nchar(participant.label) == 32]
+```
+
+The result is assigned to a data.tabled called `DT`.
+
+# Primary Outcomes
+
+Following @Baillon_2018a, we study two indices capturing ambiguity attitudes:
+
+$$
+\begin{equation*}
+b=1-\overline{m_s}-\overline{m_c} \qquad \qquad a= 3 \times (\frac{1}{3} -(\overline{m_c}-\overline{m_s})).
+\end{equation*}
+$$
+
+Index _b_ captures the _ambiguity aversion_ and ranges from -1 to 1. A negative _b_ can be interpreted as ambiguity seeking, while a positive _b_ refers to ambiguity aversion: in fact, for expected utility maximizers, i.e., ambiguity-neutral decision makers, the probability equivalents of an event and its complement adds to 1 such that the index takes value 0.
+
+Index _a_ is referred to as the _ambiguity-generating insensitivity index_. It measures to what extent the matching probabilities converge towards 50%. Again, it takes value 0 under ambiguity neutrality as $\overline{m_s} = \frac{1}{3}$ and $\overline{m_c} = \frac{2}{3}$. Positive values of _a_ indicate overweighted low probabilities and underweighted high probabilities, reflecting relative insensitivity. In contrast, negative values of _a_ indicate underweighted low probabilities and overweighted high probabilities [@AnantanasuwongEtAl_2019].
+
+For the sake of convenience, we start to compute these indices by dropping all the columns that we do not need for this step and keep the `participant.id` to match the data later on. To do so, we use a regex.
+
+
+```{r select_data}
+cols <- str_detect(string = names(DT), 
+                   pattern = "participant.label|event_decision|matching_probability|Intro.1.player.(location|treatment)")
+
+tmp <- DT[, ..cols]
+```
+
+We then rename the two treatment variables, `surprise` and `communication`:
+
+```{r rename_treatment}
+tmp[, surprise := ifelse(test = Intro.1.player.location == 'Ilomantsi',
+                         yes  = TRUE,
+                         no   = FALSE)]
+tmp[, Intro.1.player.location := NULL]
+
+setnames(x = tmp, old = 'Intro.1.player.treatment', new = 'communication')
+tmp[communication == "best_guess", communication := "point"]
+```
+
+```{r display_events}
+tmp %>% head(n = 7) %>% kable()
+```
+
+We then use `data.table::melt()` to create a long table, create a `stage` as well as a `treated` variable that express treatment status. In addition, we correct matching probabilities equaling 101. Because the stated number of winning balls indicates the minimum number of balls such that the lottery is preferred, we subtract 0.5 from the selected values to specify the matching probability (indifference point)
+
+```{r reshape_long}
+long <- data.table::melt(tmp,
+                         id.vars = c('participant.label', 'surprise', 'communication'),
+                         measure.vars = patterns('matching', 'decision'),
+                         variable.name = 'period',
+                         value.name = c('matching_prob', 'event'))
+
+long[, period := period %>% as.character() %>% as.numeric()]
+long[period <= 6, stage := 1]
+long[period >  6, stage := 2]
+long[stage == 1, treated := FALSE]
+long[stage == 2, treated := TRUE]
+
+long[, matching_prob := matching_prob %>% as.numeric()]
+long[matching_prob != 101 & matching_prob != 0, matching_prob := matching_prob - 0.5]
+long[matching_prob == 101, matching_prob := 100]
+```
+
+```{r display_long}
+long %>% head(n = 7) %>% kable()
+```
+
+Next, we reshape that table once more and bring it to a wide format using `data.table::dcast()` and call the result `event_data`.
+
+```{r reshape_wide}
+event_data <- data.table::dcast(long, 
+                                participant.label + surprise + communication + stage + treated ~ event, 
+                                value.var = c('matching_prob'))
+
+setorder(event_data, surprise, communication, participant.label)
+```
+
+We now change the data class of `communication` and make it a factor.
+
+```{r factorize}
+event_data[, communication := as.factor(communication)]
+event_data[, communication := factor(communication, levels = c("point", "interval", "both"))]
+```
+
+Finally, we create the indices we are interested in (mainly `b` and `a`) as well as the Euclidyan distance (`ed`) between matching probabilities prior to and after treatment.
+
+```{r calc_indices}
+event_data[, mc := (E12 + E13 + E23)/3/100]
+event_data[, ms := (E1 + E2 + E3)/3/100]
+event_data[, b := (1 - ms - mc)]
+event_data[, a := 3 * (1/3 - (mc - ms))]
+```
+
+```{r euclidyan_distance}
+event_data[, ed := sqrt(diff(E1)^2+diff(E2)^2+diff(E3)^2+diff(E12)^2+diff(E13)^2+diff(E23)^2), 
+           by = participant.label]
+```
+
+```{r display_wide}
+event_data %>% head(n = 7) %>% kable()
+```
+
+
+# Self-Reports
+
+For the sake of clarity, we select self-reported columns as well as the `participant.label` while processing the self-reported data. Doing so, we exploit that all self-reports were elicited in the so called `Outro` app, which is why we can select the corresponding columns using oTree's naming convention.
+
+```{r select_self_report_columns}
+sr_cols <- c("participant.label", "participant.time_started_utc", 
+             names(DT) %>% 
+               str_subset(pattern = "Outro")) %>%
+  str_subset(pattern = "subsession|role|payoff|in_group", 
+             negate = TRUE)
+
+self_reports <- DT[, ..sr_cols]
+```
+
+To increase clarity further, we drop irrelevant information from oTree's naming convention (e.g., replace the name of `Outro.1.player.Family` with _"family"_).
+
+```{r rename_self_report_columns}
+names(self_reports) %>%
+  str_replace_all(pattern = ".*player\\.", replacement = "") %>%
+  str_to_lower() %>%
+  setnames(x = self_reports)
+```
+
+Next, we dichotomize several self-reports using a median split.
+
+```{r median_splits}
+self_reports[, high_temperature := ifelse(test = temp >= median(temp),
+                                          yes  = TRUE,
+                                          no   = FALSE)]
+
+self_reports[, high_usage := ifelse(test = usage >= median(usage),
+                                          yes  = TRUE,
+                                          no   = FALSE)]
+
+self_reports[, high_general_risk := ifelse(test = risk_general >= median(risk_general),
+                                          yes  = TRUE,
+                                          no   = FALSE)]
+
+self_reports[, high_weather_risk := ifelse(test = risk_weather >= median(risk_weather),
+                                          yes  = TRUE,
+                                          no   = FALSE)]
+
+self_reports[, high_accuracy := ifelse(test = accuracy >= median(accuracy),
+                                          yes  = TRUE,
+                                          no   = FALSE)]
+
+self_reports[, high_credibility := ifelse(test = credibility >= median(credibility),
+                                          yes  = TRUE,
+                                          no   = FALSE)]
+
+```
+
+
+In addition, we hard-code some variables.
+
+```{r hard_code_age}
+self_reports[age < 18, age := NA]
+
+self_reports[, age_18_34   := ifelse(test = age < 35, yes = TRUE, no = FALSE)]
+self_reports[, age_53_plus := ifelse(age > 52, yes = TRUE, no = FALSE)]
+self_reports[, age_35_52   := ifelse(age >= 35 & age <= 52, yes = TRUE, no = FALSE)]
+```
+
+```{r hard_code_gender}
+self_reports[, female := ifelse(test = gender == "female", yes = TRUE, no = FALSE)]
+```
+
+```{r hard_code_education}
+self_reports[, high_education := ifelse(test = education >= 5, yes = TRUE, no = FALSE)]
+self_reports[, high_education := ifelse(test = education == 8, yes = FALSE, no = high_education)]
+```
+
+```{r hard_code_income}
+self_reports[income == 99999, income := NA]
+self_reports[, high_income := ifelse(test = income >= 3, yes = TRUE, no = FALSE)]
+```
+
+```{r hard_code_family}
+self_reports[, married := ifelse(test = family == "same-sex union" | family == "married", yes = TRUE, no = FALSE)]
+```
+
+```{r select_new_vars_in_self_reports}
+self_report_selection <- self_reports[, .(participant.label,
+                                          participant.time_started_utc,
+                                          comprehension,
+                                          age_18_34,
+                                          age_35_52,
+                                          age_53_plus,
+                                          female,
+                                          high_education,
+                                          high_income,
+                                          married,
+                                          parentship = as.logical(kids),
+                                          high_temperature,
+                                          high_usage,
+                                          high_general_risk,
+                                          high_weather_risk,
+                                          high_accuracy,
+                                          high_credibility)]
+```
+
+```{r display_self_reports}
+self_report_selection %>% head(n = 7) %>% kable()
+```
+
+# Comprehension Questions
+
+For robustness checks, we subset participants, who did answer the comprehension questions correctly at their first try. These information are stored in the `Intro` app, which we now select and rename before we merge it with the remaining data later on.
+
+```{r select_wrong_answers}
+intro <- names(DT) %>% 
+  str_detect(pattern = "participant.label|wrong")
+
+comp_questions <- DT[, ..intro]
+```
+
+
+```{r rename_wrong_answers}
+names(comp_questions) %>%
+  str_replace_all(pattern = ".*player\\.", replacement = "") %>%
+  str_to_lower() %>%
+  setnames(x = comp_questions)
+```
+
+
+# Time Spent
+
+Next, we calculate how much time a participant spent on a given page. To do so, we subtract time stamps which were recorded whenever a page was submitted. The difference of two subsequent time stamps (`time_spent_on_page`) therefore tells us how much time a participant spent on a given page.
+
+We calculate the `time_spent_on_page` metric, store it in a data table `duration` and add a `participant.label` column that is not inherent to the available `time_spent` data (and which we use as the key ID to match data).
+
+```{r time_spent}
+time_spent[,
+          lag := shift(epoch_time_completed, fill = NA, type = "lag"),
+          by = c("session_code", "participant_code")]
+
+time_spent[,
+          time_spent_on_page := epoch_time_completed - lag,
+          by = c("session_code", "participant_code")]
+
+time_spent[,
+          completion := epoch_time_completed %>% max() - epoch_time_completed %>% min(),
+          by = c("session_code", "participant_code")]
+
+duration <- time_spent[participant_code %in% DT$participant.code,
+                      .(
+                        session_code,
+                        participant.code = participant_code,
+                        app_name,
+                        page_name,
+                        page_index,
+                        page_submission = epoch_time_completed,
+                        time_spent_on_page,
+                        completion_time = completion
+                      )] %>%
+  setorder(participant.code, page_index)
+
+duration <- duration[DT[, .(participant.label, participant.code)],
+                     on = .(participant.code = participant.code)]
+```
+
+```{r display_duration}
+duration %>% head(n = 7) %>% kable()
+```
+
+# Merge Data
+
+```{r merge_data}
+merge_1 <- event_data[duration[, .(participant.label, participant.code, completion_time)] %>% unique(),
+                      on = .(participant.label)]
+
+merge_2 <- merge_1[comp_questions,
+                   on = .(participant.label)]
+
+full_processed <- merge_2[self_report_selection, 
+                          on = .(participant.label = participant.label)]
+```
+
+```{r display_full_data}
+full_processed %>% head(n = 7) %>% kable()
+```
+
+
+# Save Data
+
+```{r save_data}
+data.table::fwrite(x = full_processed,
+                   file = "../data/processed/full.csv")
+saveRDS(full_processed, file = "../data/processed/full.Rda")
+
+data.table::fwrite(x = duration,
+                   file = "../data/processed/timing.csv")
+saveRDS(duration, file = "../data/processed/timing.Rda")
+```
+
+# Clean up
+
+Lastly, we clean the global environment.
+
+```{r cleanup}
+objects <- c(ls(), "objects", "objects_to_keep", "objects_to_remove")
+objects_to_keep <- c("full_processed", "duration")
+objects_to_remove <- setdiff(objects, objects_to_keep)
+rm(list = objects_to_remove)
+```
+

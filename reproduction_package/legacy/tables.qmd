@@ -1,0 +1,464 @@
+---
+title: 'Reproduce Tables'
+subtitle: 'Ambiguity attitudes and surprises'
+author:
+- name: Aljoscha Minnich
+  email: aljoscha.minnich@uni-hamburg.de
+  orcid: 0000-0001-5224-0143
+  corresponding: false
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+- name: Hauke Roggenkamp
+  email: Hauke.Roggenkamp@unisg.ch
+  orcid: 0009-0005-5176-4718
+  corresponding: false
+  affiliations:
+    - name: Institute of Behavioral Science and Technology, University of St. Gallen
+      address: Torstrasse 25
+      city: St. Gallen
+      country: Switzerland
+      postal-code: 9000
+    - name: Faculty of Economics & Social Sciences, Helmut-Schmidt-University
+      address: Holstenhofweg 85
+      city: Hamburg
+      country: Germany
+      postal_code: 22043
+- name: Andreas Lange
+  email: andreas.lange@uni-hamburg.de
+  corresponding: true
+  affiliations:
+    - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg
+      address: Bundesstrasse 53
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+    - name: Department of Economics, University of Hamburg
+      address:  Von-Melle-Park 5
+      city: Hamburg
+      country: Germany
+      postal-code: 20146
+date: now
+date-format: long
+format: 
+  html:
+    embed-resources: true
+    theme: cosmo
+toc: true
+bibliography: ../biblio.bib
+---
+
+---
+
+This document explains how to reproduce the tables presented in the paper.
+
+# Session Info
+
+```{r session_info}
+sessionInfo()
+```
+
+# Install Packages
+
+We install the following packages using the `groundhog` package manager to increase computational reproducibility.
+
+```{r install_packages}
+#| output: false
+
+options(repos = c(CRAN = "https://cran.r-project.org")) 
+
+
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+    library("groundhog")
+}
+
+pkgs <- c("magrittr", "data.table", "stringr", "lubridate", "knitr", 
+          "sandwich", "lmtest",
+          "sjPlot", "stargazer")
+
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2023-09-25")
+```
+
+# Read Data
+
+```{r read_data}
+# data <- data.table::fread(file = "../data/processed/full.csv")
+data <- readRDS(file="../data/processed/full.Rda")
+```
+
+```{r factorize}
+data[, communication := as.factor(communication)]
+data[, communication := factor(communication, levels = c("point", "interval", "both"))]
+```
+
+# Table 1
+
+```{r}
+# data[communication == 'best_guess' & surprise == TRUE, .(mean = mean(a), 
+#          sd = sd(a)), 
+#      by = stage] %>% 
+#   round(digits = 2)
+```
+
+# Table 3
+
+```{r covariates}
+demographics <- c("age_35_52","age_53_plus","female", "high_education", "high_income", "married", "parentship")
+
+all <- c(demographics, "high_temperature","high_usage","high_general_risk","high_weather_risk","high_accuracy","high_credibility")
+```
+
+```{r regression_models_table_3}
+ols_3_1 <- lm(formula = reformulate(c(demographics), response="b"), 
+            data = data, 
+            subset = (treated == FALSE))
+se_3_1  <- coeftest(ols_3_1, vcov = vcovHC(ols_3_1, type = "HC1"))
+
+ols_3_2 <- lm(formula = reformulate(c(all), response="b"), 
+            data = data, 
+            subset = (treated == FALSE))
+se_3_2  <- coeftest(ols_3_2, vcov = vcovHC(ols_3_2, type = "HC1"))
+
+ols_3_3 <- lm(formula = reformulate(c(demographics), response="a"), 
+            data = data, 
+            subset = (treated == FALSE))
+se_3_3  <- coeftest(ols_3_3, vcov = vcovHC(ols_3_3, type = "HC1"))
+
+ols_3_4 <- lm(formula = reformulate(c(all), response="a"), 
+            data = data, 
+            subset = (treated == FALSE))
+se_3_4  <- coeftest(ols_3_4, vcov = vcovHC(ols_3_4, type = "HC1"))
+
+
+```
+
+```{r regression_output_table_3}
+#| results: asis
+
+se_3 <- list(se_3_1[,2], se_3_2[,2], se_3_3[,2], se_3_4[,2])
+p_3  <- list(se_3_1[,4], se_3_2[,4], se_3_3[,4], se_3_4[,4])
+
+stargazer(ols_3_1, ols_3_2, ols_3_3, ols_3_4, 
+          align = TRUE, 
+          se = se_3, 
+          p = p_3,   
+          title = "Linear regressions: Explanatory analysis of Ambiguity Indices b and a",
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE)
+
+```
+
+# Table 4
+
+```{r}
+ols_4_1 <- lm(formula = b ~ surprise + treated + surprise*treated, 
+            data = data)
+se_4_1  <- coeftest(x = ols_4_1, 
+                    vcov = vcovCL(ols_4_1,
+                                  cluster = ~data$participant.label,
+                                  type = "HC1"))
+
+ols_4_2 <- lm(formula = b ~ communication + treated + communication*treated, 
+            data = data,
+            subset = (surprise == FALSE))
+se_4_2  <- coeftest(x = ols_4_2, 
+                    vcov = vcovCL(ols_4_2,
+                                  cluster = data[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+
+ols_4_3 <- lm(formula = b ~ communication + treated + communication*treated, 
+            data = data,
+            subset = (surprise == TRUE))
+se_4_3  <- coeftest(x = ols_4_3, 
+                    vcov = vcovCL(ols_4_3,
+                                  cluster = data[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+
+ols_4_4 <- lm(formula = b ~ surprise + treated + surprise*treated, 
+            data = data,
+            subset = (communication == "point"))
+se_4_4  <- coeftest(x = ols_4_4, 
+                    vcov = vcovCL(ols_4_4,
+                                  cluster = data[communication == "point", participant.label],
+                                  type = "HC1"))
+
+ols_4_5 <- lm(formula = b ~ surprise + treated + surprise*treated, 
+            data = data,
+            subset = (communication == "interval"))
+se_4_5  <- coeftest(x = ols_4_5, 
+                    vcov = vcovCL(ols_4_5,
+                                  cluster = data[communication == "interval", participant.label],
+                                  type = "HC1"))
+
+ols_4_6 <- lm(formula = b ~ surprise + treated + surprise*treated, 
+            data = data,
+            subset = (communication == "both"))
+se_4_6  <- coeftest(x = ols_4_6, 
+                    vcov = vcovCL(ols_4_6,
+                                  cluster = data[communication == "both", participant.label],
+                                  type = "HC1"))
+```
+
+```{r regression_output_table_4}
+#| results: asis
+
+se_4 <- list(se_4_1[,2], se_4_2[,2], se_4_3[,2], se_4_4[,2], se_4_5[,2], se_4_6[,2])
+p_4  <- list(se_4_1[,4], se_4_2[,4], se_4_3[,4], se_4_4[,4], se_4_5[,4], se_4_6[,4])
+
+stargazer(ols_4_1, ols_4_2, ols_4_3, ols_4_4, ols_4_5, ols_4_6, 
+          align = TRUE, 
+          se = se_4, 
+          p = p_4,   
+          title = "Linear regressions: Treatment effects on ambiguity index b",
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE)
+
+```
+
+# Table 5
+
+```{r}
+ols_5_1 <- lm(formula = a ~ surprise + treated + surprise*treated,
+              data = data)
+se_5_1  <- coeftest(x = ols_5_1, 
+                    vcov = vcovCL(ols_5_1,
+                                  cluster = ~data$participant.label,
+                                  type = "HC1"))
+
+ols_5_2 <- lm(formula = a ~ communication + treated + communication*treated,
+              data = data,
+              subset = (surprise == FALSE))
+se_5_2  <- coeftest(x = ols_5_2, 
+                    vcov = vcovCL(ols_5_2,
+                                  cluster = data[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+
+ols_5_3 <- lm(formula = a ~ communication + treated + communication*treated,
+              data = data,
+              subset = (surprise == TRUE))
+se_5_3  <- coeftest(x = ols_5_3, 
+                    vcov = vcovCL(ols_5_3,
+                                  cluster = data[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+
+ols_5_4 <- lm(formula = a ~ surprise + treated + surprise*treated, 
+              data = data,
+              subset = (communication == "point"))
+se_5_4  <- coeftest(x = ols_5_4, 
+                    vcov = vcovCL(ols_5_4,
+                                  cluster = data[communication == "point", participant.label],
+                                  type = "HC1"))
+
+ols_5_5 <- lm(formula = a ~ surprise + treated + surprise*treated, 
+              data = data,
+              subset = (communication == "interval"))
+se_5_5  <- coeftest(x = ols_5_5, 
+                    vcov = vcovCL(ols_5_5,
+                                  cluster = data[communication == "interval", participant.label],
+                                  type = "HC1"))
+
+ols_5_6 <- lm(formula = a ~ surprise + treated + surprise*treated, 
+              data = data,
+              subset = (communication == "both"))
+se_5_6  <- coeftest(x = ols_5_6, 
+                    vcov = vcovCL(ols_5_6,
+                                  cluster = data[communication == "both", participant.label],
+                                  type = "HC1"))
+```
+
+```{r regression_output_table_5}
+#| results: asis
+
+se_5 <- list(se_5_1[,2], se_5_2[,2], se_5_3[,2], se_5_4[,2], se_5_5[,2], se_5_6[,2])
+p_5  <- list(se_5_1[,4], se_5_2[,4], se_5_3[,4], se_5_4[,4], se_5_5[,4], se_5_6[,4])
+
+stargazer(ols_5_1, ols_5_2, ols_5_3, ols_5_4, ols_5_5, ols_5_6, 
+          align = TRUE, 
+          se = se_5, 
+          p = p_5,   
+          title = "Linear regressions: Treatment effects on ambiguity index a",
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE)
+
+```
+
+# Table 6
+
+```{r}
+ols_6_1 <- lm(formula = ed ~ surprise, 
+            data = data,
+            subset = (stage == 2))
+se_6_1  <- coeftest(ols_6_1, vcov = vcovHC(ols_6_1, type = "HC1"))
+
+ols_6_2 <- lm(formula = ed ~ communication, 
+            data = data,
+            subset = (stage == 2 & surprise == FALSE))
+se_6_2  <- coeftest(ols_6_2, vcov = vcovHC(ols_6_2, type = "HC1"))
+
+ols_6_3 <- lm(formula = ed ~ communication, 
+            data = data,
+            subset = (stage == 2 & surprise == TRUE))
+se_6_3  <- coeftest(ols_6_3, vcov = vcovHC(ols_6_3, type = "HC1"))
+
+ols_6_4 <- lm(formula = ed ~ surprise, 
+            data = data,
+            subset = (stage == 2 & communication == "point"))
+se_6_4  <- coeftest(ols_6_4, vcov = vcovHC(ols_6_4, type = "HC1"))
+
+ols_6_5 <- lm(formula = ed ~ surprise, 
+            data = data,
+            subset = (stage == 2 & communication == "interval"))
+se_6_5  <- coeftest(ols_6_5, vcov = vcovHC(ols_6_5, type = "HC1"))
+
+ols_6_6 <- lm(formula = ed ~ surprise, 
+            data = data,
+            subset = (stage == 2 & communication == "both"))
+se_6_6  <- coeftest(ols_6_6, vcov = vcovHC(ols_6_6, type = "HC1"))
+```
+
+```{r regression_output_table_6}
+#| results: asis
+
+se_6 <- list(se_6_1[,2], se_6_2[,2], se_6_3[,2], se_6_4[,2], se_6_5[,2], se_6_6[,2])
+p_6  <- list(se_6_1[,4], se_6_2[,4], se_6_3[,4], se_6_4[,4], se_6_5[,4], se_6_6[,4])
+
+stargazer(ols_6_1, ols_6_2, ols_6_3, ols_6_4, ols_6_5, ols_6_6, 
+          align = TRUE, 
+          se = se_6,
+          p = p_6,   
+          title = "Linear regressions: Treatment effects on Euclidian distance between vector of matching probabilities in part 1 vs. part 2",
+          font.size = "scriptsize",
+          type = "html", 
+          df = FALSE)
+
+```
+
+
+# Appendix B
+
+```{r wrapper_function}
+event_regressions <- function(event = "E1"){
+  ols_1 <- lm(formula = reformulate(c("surprise", "treated", "surprise*treated"), response = event),
+              data = data)
+  se_1  <- coeftest(x = ols_1, 
+                    vcov = vcovCL(ols_1,
+                                  cluster = ~data$participant.label,
+                                  type = "HC1"))
+  
+  ols_2 <- lm(formula = reformulate(c("communication", "treated", "communication*treated"), response = event), 
+              data = data,
+              subset = (surprise == FALSE))
+  se_2  <- coeftest(x = ols_2, 
+                    vcov = vcovCL(ols_2,
+                                  cluster = data[surprise == FALSE, participant.label],
+                                  type = "HC1"))
+  
+  ols_3 <- lm(formula = reformulate(c("communication", "treated", "communication*treated"), response = event), 
+              data = data,
+              subset = (surprise == TRUE))
+  se_3  <- coeftest(x = ols_3, 
+                    vcov = vcovCL(ols_3,
+                                  cluster = data[surprise == TRUE, participant.label],
+                                  type = "HC1"))
+  
+  ols_4 <- lm(formula = reformulate(c("surprise", "treated", "surprise*treated"), response = event), 
+              data = data,
+              subset = (communication == "point"))
+  se_4  <- coeftest(x = ols_4, 
+                    vcov = vcovCL(ols_4,
+                                  cluster = data[communication == "point", participant.label],
+                                  type = "HC1"))
+  
+  ols_5 <- lm(formula = reformulate(c("surprise", "treated", "surprise*treated"), response = event), 
+              data = data,
+              subset = (communication == "interval"))
+  se_5  <- coeftest(x = ols_5, 
+                    vcov = vcovCL(ols_5,
+                                  cluster = data[communication == "interval", participant.label],
+                                  type = "HC1"))
+  
+  ols_6 <- lm(formula = reformulate(c("surprise", "treated", "surprise*treated"), response = event), 
+              data = data,
+              subset = (communication == "both"))
+  se_6  <- coeftest(x = ols_6, 
+                    vcov = vcovCL(ols_6,
+                                  cluster = data[communication == "both", participant.label],
+                                  type = "HC1"))
+
+
+  
+  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
+  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
+  
+  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
+            align = TRUE, 
+            se = se, 
+            p = p,   
+            title = paste0("Linear regressions: Treatment effects on ", event),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE)
+}
+```
+
+
+## E1
+
+```{r E1}
+#| results: asis
+event_regressions(event = "E1")
+```
+
+
+## E2
+
+```{r E2}
+#| results: asis
+event_regressions(event = "E2")
+```
+
+
+## E3
+
+```{r E3}
+#| results: asis
+event_regressions(event = "E3")
+```
+
+
+## E12
+
+```{r E12}
+#| results: asis
+event_regressions(event = "E12")
+```
+
+
+## E13
+
+```{r E13}
+#| results: asis
+event_regressions(event = "E13")
+```
+
+
+## E23
+
+```{r E23}
+#| results: asis
+event_regressions(event = "E23")
+```
+

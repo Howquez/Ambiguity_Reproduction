@@ -1,0 +1,435 @@
+# Online Appendix C
+
+## Setup
+
+### Install Packages
+
+We install the following packages using the `groundhog` package manager to increase computational reproducibility.
+
+```{r install_packages}
+#| output: false
+
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+    library("groundhog")
+}
+
+pkgs <- c("magrittr", "data.table", "stringr", "Rmisc", "ggplot2", "patchwork",
+          "rstatix", "ggpubr", "glue", "lubridate", "plyr", 
+          "lmtest", "sandwich", "stargazer" # packages for regression tables
+          )
+
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2023-09-25")
+```
+
+### Read Data
+
+```{r read_data}
+# data <- data.table::fread(file = "../data/processed/full.csv")
+data <- readRDS(file="../data/processed/full.Rda")
+```
+
+### Manipulate Data
+
+`[Shall we add this code chunk to the pre-processing?]`
+
+```{r factorize}
+data[, communication := as.factor(communication)]
+data[, communication := factor(communication, levels = c("point", "both","interval"))]
+data[, stage := as.factor(stage)]
+data[, stage := factor(stage, levels = c("1", "2"))]
+```
+
+```{r probabilites}
+cols <- str_subset(string = names(data), pattern = "E\\d+")
+data[, 
+     str_replace_all(string = cols, pattern = "^E", replacement = "m") := lapply(.SD, function(x) x / 100), 
+     .SDcols = cols] 
+
+data[, p1 := 0.5 + (m1 - m23)/ (6*(mc-ms))]
+data[, p2 := 0.5 + (m2 - m13)/ (6*(mc-ms))]
+data[, p3 := 0.5 + (m3 - m12)/ (6*(mc-ms))]
+```
+
+```{r wide_data}
+wide_data <- data.table::dcast(data, 
+                                participant.label + surprise + communication ~ stage, 
+                                value.var = c("E1", "E2", "E3", "E12", "E23","E13", "b", "a"))
+
+setorder(wide_data, surprise, communication, participant.label)
+```
+
+
+### Design
+
+We define some design features in the following:
+
+```{r design_features}
+
+colors <- c("#F3B05C", "#1E4A75", "#65B5C0", "#AD5E21")
+
+layout <- theme(panel.background = element_rect(fill = "white"),
+                legend.key = element_rect(fill = "white"),
+                panel.grid.major.y = element_line(colour = "grey", 
+                                                  linewidth = 0.25),
+                axis.ticks.y = element_blank(),
+                panel.grid.major.x = element_blank(),
+                axis.line.x.bottom = element_line(colour = "#000000", 
+                                                  linewidth = 0.5),
+                axis.line.y.left = element_blank(),
+                plot.title = element_text(size = rel(1))
+)
+
+```
+
+
+### Helper Function
+
+
+To create @fig-oc1 (and the other figures), we create a wrapper function that we can call several times. Figures such as @fig-oc1 consist of eight panels, that are relatively similar. We thus, save both space and sources of error by creating a wrapper function `plot_scatter()` that creates scatter plots. To annotate and scale these plots, we also create a wrapper function for `plot_scatter()` called `plot_scatter_with_defaults()`. The latter function is called in the script below and contains some hard-coded defaults that determine annotations and the scales, i.e., where the annotations are placed.
+
+```{r scatter_function}
+
+plot_scatter <- function(outcome.y = "b_2", 
+                         outcome.x = "b_1", 
+                         DT = wide_data[surprise == FALSE & communication == "both"], 
+                         breaks = seq(from = -1, to = 1, by = 0.5), 
+                         limits = c(-1, 1), 
+                         # manual annotation positions:
+                         x1 = 0.9,
+                         x2 = 0.3,
+                         x3 = -0.6,
+                         x4 = 0.6, 
+                         y1 = - 0.115,
+                         y2 = 1.05,
+                         y3 = 0.7,
+                         y4 = -0.7){
+  
+  
+  # Percentage Annotation
+  p1 <- scales::percent(x = sum(DT[,..outcome.y] > DT[,..outcome.x], na.rm = TRUE) / DT[, .N], 
+                        accuracy = 1)
+  p2 <- scales::percent(x = sum(DT[,..outcome.y] < DT[,..outcome.x], na.rm = TRUE) / DT[, .N], 
+                        accuracy = 1)
+  
+  # Spearman Correlation for Subtitle
+  ro.value <- round(x = cor(DT[,..outcome.x], 
+                            DT[,..outcome.y], 
+                            method = c("spearman")),
+                    digits = 2)
+  
+  
+  # Plot
+  plot <- ggplot(data = DT,
+                 mapping = aes(x = get(outcome.x),
+                               y = get(outcome.y))) +
+    geom_count(shape = 1, show.legend = FALSE) +
+    
+    # add axes and diagonal
+    geom_vline(xintercept = 0) +
+    geom_hline(yintercept = 0) +
+    geom_abline(intercept = 0, slope = 1, linewidth = 0.6) +
+    
+    # remove all the other lines
+    theme(line = element_blank(), 
+          panel.background = element_rect(fill = "white",
+                                          colour = "white",
+                                          linetype = "solid")) +
+    
+    # define axis labels
+    labs(x = as.expression(bquote(rho~"="~.(ro.value))),
+         y = "") +
+    
+    # add annotations
+    geom_text(x = x1, y = y1, label = "Part 1") +
+    geom_text(x = x2, y = y2, label = "Part 2") +
+    geom_text(x = x3, y = y3, label = p1) +
+    geom_text(x = x4, y = y4, label = p2) +
+  
+    # define consistent axis breaks etc.
+    scale_x_continuous(breaks = breaks, lim = limits) +
+    scale_y_continuous(breaks = breaks, lim = limits)
+    
+    plot
+  
+}
+
+# Wrapper function with a consistent parameter handling approach
+plot_scatter_with_defaults <- function(DT, figure = "oc1") {
+  # Define defaults for each set
+  defaults <- list(
+    oc1 = list(outcome.y = "b_2", outcome.x = "b_1",
+               breaks = seq(from = -1, to = 1, by = 0.5), 
+               limits = c(-1, 1), 
+               x1 = 0.9, x2 = 0.3, x3 = -0.6, x4 = 0.6, 
+               y1 = -0.115, y2 = 1.05, y3 = 0.7, y4 = -0.7),
+    oc2 = list(outcome.y = "a_2", outcome.x = "a_1",
+               breaks = seq(from = -2, to = 4, by = 1), 
+               limits = c(-2, 4), 
+               x1 = 3.4, x2 = 0.8, x3 = -1.5, x4 = 1.5, 
+               y1 = -0.4, y2 = 0.39, y3 = 1.9, y4 = -1.9),
+    oc3 = list(outcome.y = "E1_2", outcome.x = "E1_1",
+               breaks = seq(from = 0, to = 100, by = 50), 
+               limits = c(0, 101), 
+               x1 = 90, x2 = 15, x3 = 15, x4 = 90, 
+               y1 = 5, y2 = 100, y3 = 80, y4 = 20),
+    oc4 = list(outcome.y = "E2_2", outcome.x = "E2_1",
+               breaks = seq(from = 0, to = 100, by = 50), 
+               limits = c(0, 101), 
+               x1 = 90, x2 = 15, x3 = 15, x4 = 90, 
+               y1 = 5, y2 = 100, y3 = 80, y4 = 20),
+    oc5 = list(outcome.y = "E3_2", outcome.x = "E3_1",
+               breaks = seq(from = 0, to = 100, by = 50), 
+               limits = c(0, 101), 
+               x1 = 90, x2 = 15, x3 = 15, x4 = 90, 
+               y1 = 5, y2 = 100, y3 = 80, y4 = 20),
+    oc6 = list(outcome.y = "E12_2", outcome.x = "E12_1",
+               breaks = seq(from = 0, to = 100, by = 50), 
+               limits = c(0, 101), 
+               x1 = 90, x2 = 15, x3 = 15, x4 = 90, 
+               y1 = 5, y2 = 100, y3 = 80, y4 = 20),
+    oc7 = list(outcome.y = "E13_2", outcome.x = "E13_1",
+               breaks = seq(from = 0, to = 100, by = 50), 
+               limits = c(0, 101), 
+               x1 = 90, x2 = 15, x3 = 15, x4 = 90, 
+               y1 = 5, y2 = 100, y3 = 80, y4 = 20),
+    oc8 = list(outcome.y = "E23_2", outcome.x = "E23_1",
+               breaks = seq(from = 0, to = 100, by = 50), 
+               limits = c(0, 101), 
+               x1 = 90, x2 = 15, x3 = 15, x4 = 90, 
+               y1 = 5, y2 = 100, y3 = 80, y4 = 20)
+  )
+  
+  # Remove the non-required default params before calling the plot function
+  default_params <- defaults[[figure]]
+  
+  # Combine all parameters
+  args <- c(list(DT = DT), default_params)
+  
+  # Call the original plot function with the combined arguments
+  do.call(plot_scatter, args)
+}
+```
+
+
+
+## Figure OC.1
+
+In what follows, we will call the custom functions defined above.
+
+```{r fig_oc1}
+#| label: fig-oc1
+#| fig-cap: 'Scatterplot of the ambiguity index b. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc1")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc1")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc1")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc1")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc1")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc1")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc1")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc1")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+
+## Figure OC.2
+
+```{r fig_oc2}
+#| label: fig-oc2
+#| fig-cap: 'Scatterplot of the ambiguity index a. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc2")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc2")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc2")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc2")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc2")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc2")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc2")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc2")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+## Figure OC.3
+
+```{r fig_oc3}
+#| label: fig-oc3
+#| fig-cap: 'Scatterplot of the matching probabilities for event E1. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc3")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc3")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc3")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc3")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc3")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc3")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc3")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc3")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+## Figure OC.4
+
+```{r fig_oc4}
+#| label: fig-oc4
+#| fig-cap: 'Scatterplot of the matching probabilities for event E2. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc4")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc4")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc4")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc4")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc4")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc4")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc4")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc4")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+## Figure OC.5
+
+```{r fig_oc5}
+#| label: fig-oc5
+#| fig-cap: 'Scatterplot of the matching probabilities for event E3. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc5")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc5")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc5")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc5")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc5")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc5")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc5")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc5")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+## Figure OC.6
+
+```{r fig_oc6}
+#| label: fig-oc6
+#| fig-cap: 'Scatterplot of the matching probabilities for event E12. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc6")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc6")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc6")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc6")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc6")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc6")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc6")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc6")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+## Figure OC.7
+
+```{r fig_oc7}
+#| label: fig-oc7
+#| fig-cap: 'Scatterplot of the matching probabilities for event E13. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc7")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc7")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc7")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc7")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc7")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc7")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc7")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc7")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```
+
+
+## Figure OC.8
+
+```{r fig_oc8}
+#| label: fig-oc8
+#| fig-cap: 'Scatterplot of the matching probabilities for event E23. The relationship between part 1 and part 2 separated by treatments with correlation coefficients and percentages above and below the diagonal.'
+
+
+top1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE], figure = "oc8")
+
+top2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE], figure = "oc8")
+
+mid1 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "point"], figure = "oc8")
+
+mid2 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "interval"], figure = "oc8")
+
+mid3 <- plot_scatter_with_defaults(DT = wide_data[surprise == FALSE & communication == "both"], figure = "oc8")
+
+bot1 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "point"], figure = "oc8")
+
+bot2 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "interval"], figure = "oc8")
+
+bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communication == "both"], figure = "oc8")
+
+((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+
+```

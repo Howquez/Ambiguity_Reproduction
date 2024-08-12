@@ -1,3 +1,0 @@
-# Preface {.unnumbered}
-
-This document explains and shows how to reproduce the figures and tables presented in our paper using a literate programming approach [@Knuth_1984].
