@@ -14,7 +14,6 @@ options(repos = c(CRAN = "https://cran.r-project.org"))
 
 if (!requireNamespace("groundhog", quietly = TRUE)) {
     install.packages("groundhog")
-    library("groundhog")
 }
 
 pkgs <- c("magrittr", "data.table", "stringr", "lubridate", "knitr", "glue",
@@ -22,7 +21,9 @@ pkgs <- c("magrittr", "data.table", "stringr", "lubridate", "knitr", "glue",
           "ggplot2", "ggpubr", "rstatix", "patchwork")
 
 groundhog::groundhog.library(pkg = pkgs,
-                             date = "2023-09-25")
+                             date = "2024-08-01")
+
+rm(pkgs)
 ```
 
 ## Read Data

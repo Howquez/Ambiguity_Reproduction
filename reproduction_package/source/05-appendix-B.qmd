@@ -13,14 +13,15 @@ options(repos = c(CRAN = "https://cran.r-project.org"))
 
 if (!requireNamespace("groundhog", quietly = TRUE)) {
     install.packages("groundhog")
-    library("groundhog")
 }
 
 pkgs <- c("magrittr", "data.table", "stringr", "Rmisc", "ggplot2",
           "lmtest", "sandwich", "stargazer")
 
 groundhog::groundhog.library(pkg = pkgs,
-                             date = "2023-09-25")
+                             date = "2024-08-01")
+
+rm(pkgs)
 ```
 
 ### Read Data
@@ -328,7 +329,7 @@ ols_1 <- lm(formula = E12 ~ surprise + treated + surprise * treated,
 ```{r tbl-B.5}
 #| results: asis
 #| label: tbl-B.5
-#| tbl-cap: "Linear regressions: Treatment effects on E5"
+#| tbl-cap: "Linear regressions: Treatment effects on E13"
 
 ols_1 <- lm(formula = E13 ~ surprise + treated + surprise * treated,
               data = data)

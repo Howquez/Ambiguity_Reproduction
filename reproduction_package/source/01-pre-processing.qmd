@@ -15,21 +15,44 @@ options(repos = c(CRAN = "https://cran.r-project.org"))
 
 if (!requireNamespace("groundhog", quietly = TRUE)) {
     install.packages("groundhog")
-    library("groundhog")
 }
 
 pkgs <- c("magrittr", "data.table", "stringr", "lubridate", "glue", "knitr")
 
 groundhog::groundhog.library(pkg = pkgs,
-                             date = "2023-09-25")
+                             date = "2024-08-01")
+
+rm(pkgs)
 ```
 
 ## Read Data
 
-We read two data files. First, `raw`, that is, a raw data set containing all variables defined in [@oTree]. This is the data we are most interested in as it contains all of our behavioral measures [see @Baillon_2018a] and self-reports.^[Note that we removed three variables to maintain anonymity of participants: their reported zip codes as well as two open-text fields rather unrelated to this study.] Second, `time_spent` describes how much time each participant spent on a given page of the online experiment.
+We read two data files. First, `raw`, that is, a raw data set containing all variables defined in [@oTree]. This is the data we are most interested in as it contains all of our behavioral measures [see @Baillon_2018a] and self-reports. Second, `time_spent` describes how much time each participant spent on a given page of the online experiment.
+
+In a first step, we remove three variables from the raw data to maintain anonymity of participants: their reported zip codes as well as two open-text fields rather unrelated to this study.
+
+```{r prepare_raw_data}
+#| echo: true
+#| eval: false
+
+dt <- data.table::fread(file = "../data/raw/all_apps_wide_2021-09-15.csv",
+                         fill = TRUE)
+
+cols <- str_subset(string = names(dt),
+                   pattern = "CLICCS\\d$|ZIP$",
+                   negate = TRUE)
+
+data.table::fwrite(x = dt[, ..cols],
+                   file = "../data/raw/all_apps_wide_2021-09-15-without-ZIP.csv",
+                   sep = ";")
+
+```
+
+Note that we will not provide the raw data `../data/raw/all_apps_wide_2021-09-15.csv` but the slightly trimmed raw data instead `../data/raw/all_apps_wide_2021-09-15-without-ZIP.csv`. A computational reproduction of or work therefore starts with the following code chunk.
 
 ```{r read_data}
-raw <- data.table::fread(file = "../data/raw/all_apps_wide_2021-09-15.csv",
+raw <- data.table::fread(file = "../data/raw/all_apps_wide_2021-09-15-without-ZIP.csv",
+                         sep = ";",
                          fill = TRUE)
 
 time_spent <- data.table::fread(file = "../data/raw/PageTimes-2021-09-15.csv")
@@ -245,7 +268,12 @@ self_report_selection <- self_reports[, .(participant.label,
                                           high_general_risk,
                                           high_weather_risk,
                                           high_accuracy,
-                                          high_credibility, 
+                                          high_credibility,
+                                          temperature = temp,
+                                          usage,
+                                          general_risk = risk_general,
+                                          weather_risk = risk_weather,
+                                          accuracy,
                                           credibility)]
 ```
 
@@ -330,10 +358,20 @@ full_processed <- merge_2[self_report_selection,
 full_processed %>% head(n = 7) %>% kable()
 ```
 
+## Create Treatment Factors
+
+```{r factorize}
+full_processed[, communication := as.factor(communication)]
+full_processed[, communication := factor(communication, 
+                                         levels = c("point", "both","interval"))]
+full_processed[, stage := as.factor(stage)]
+full_processed[, stage := factor(stage, 
+                                 levels = c("1", "2"))]
+```
 
 ## Save Data
 
-We will save the data in two formats: R's native `Rda` as well as the more interoperable `csv` format.  We noticed that the floats have fewer digits when writing `csv` files compared to `Rda`s. We'll therefor load the latter format thoughout the following sections.
+We will save the data in two formats: R's native `Rda` as well as the more interoperable `csv` format.  We noticed that the floats have fewer digits when writing `csv` files compared to `Rda`s. We'll therefor load the latter format throughout the following sections.
 
 ```{r save_data}
 data.table::fwrite(x = full_processed,
@@ -356,3 +394,4 @@ objects_to_remove <- setdiff(objects, objects_to_keep)
 rm(list = objects_to_remove)
 ```
 
+## References

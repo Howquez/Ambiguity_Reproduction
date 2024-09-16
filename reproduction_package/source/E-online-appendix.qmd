@@ -11,7 +11,6 @@ We install the following packages using the `groundhog` package manager to incre
 
 if (!requireNamespace("groundhog", quietly = TRUE)) {
     install.packages("groundhog")
-    library("groundhog")
 }
 
 pkgs <- c("magrittr", "data.table", "stringr", "Rmisc", "ggplot2", "patchwork",
@@ -20,7 +19,9 @@ pkgs <- c("magrittr", "data.table", "stringr", "Rmisc", "ggplot2", "patchwork",
           )
 
 groundhog::groundhog.library(pkg = pkgs,
-                             date = "2023-09-25")
+                             date = "2024-08-01")
+
+rm(pkgs)
 ```
 
 ### Read Data
@@ -31,15 +32,6 @@ data <- readRDS(file="../data/processed/full.Rda")
 ```
 
 ### Manipulate Data
-
-`[Shall we add this code chunk to the pre-processing?]`
-
-```{r factorize}
-data[, communication := as.factor(communication)]
-data[, communication := factor(communication, levels = c("point", "both","interval"))]
-data[, stage := as.factor(stage)]
-data[, stage := factor(stage, levels = c("1", "2"))]
-```
 
 ```{r probabilites}
 cols <- str_subset(string = names(data), pattern = "E\\d+")

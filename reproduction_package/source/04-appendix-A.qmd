@@ -13,21 +13,20 @@ options(repos = c(CRAN = "https://cran.r-project.org"))
 
 if (!requireNamespace("groundhog", quietly = TRUE)) {
   install.packages("groundhog")
-  library("groundhog")
 }
 
 pkgs <- c("magrittr", "data.table", "stringr", "Rmisc", "gt")
 
 groundhog::groundhog.library(pkg = pkgs,
-                             date = "2023-09-25")
+                             date = "2024-08-01")
+
+rm(pkgs)
 ```
 
 ### Read Data
 
 ```{r read_data}
 data      <- readRDS(file="../data/processed/full.Rda")
-timeSpent <- data.table::fread(file = "../data/raw/PageTimes-2021-09-15.csv")
-raw       <- data.table::fread(file="../data/raw/all_apps_wide_2021-09-15.csv")
 ```
 
 ```{r covariates}
@@ -46,7 +45,9 @@ long_df <- melt(covariates,
                 measure.vars = c("age_18_34", "age_35_52", "age_53_plus", "female", 
                                  "high_education", "high_income", "married", "parentship", 
                                  "high_temperature", "high_usage", "high_general_risk", 
-                                 "high_weather_risk", "high_accuracy", "high_credibility"),
+                                 "high_weather_risk", "high_accuracy", "high_credibility",
+                                 "temperature", "usage", "general_risk", 
+                                 "weather_risk", "accuracy", "credibility"),
                 variable.name = "Variable", 
                 value.name = "Value")
 
