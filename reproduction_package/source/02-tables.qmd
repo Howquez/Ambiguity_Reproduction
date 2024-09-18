@@ -18,7 +18,7 @@ if (!requireNamespace("groundhog", quietly = TRUE)) {
 
 pkgs <- c("magrittr", "data.table", "stringr", "lubridate", "knitr", 
           "sandwich", "lmtest",
-          "sjPlot", "stargazer")
+          "sjPlot", "stargazer", "gt")
 
 groundhog::groundhog.library(pkg = pkgs,
                              date = "2024-08-01")
@@ -33,10 +33,6 @@ rm(pkgs)
 data <- readRDS(file="../data/processed/full.Rda")
 ```
 
-```{r factorize}
-data[, communication := as.factor(communication)]
-data[, communication := factor(communication, levels = c("point", "interval", "both"))]
-```
 
 ## Table 2
 
@@ -63,6 +59,97 @@ data[,
 #      by = c("communication", "surprise")][order(surprise, communication)]
 ```
 
+```{r}
+# Melt the data
+long_df <- melt(data,
+                id.vars = c("stage", "surprise", "communication"),
+                measure.vars = c("b", "a", "E1", "E2", "E3", "E12", "E13", "E23"),
+                variable.name = "Variable",
+                value.name = "Value")
+
+# Function to calculate mean and sd
+calculate_stats <- function(x) {
+  c(mean = mean(x, na.rm = TRUE), sd = sd(x, na.rm = TRUE))
+}
+
+# Calculate pooled summary
+pooled_summary <- long_df[, as.list(calculate_stats(Value)), by = .(Variable, stage)]
+setnames(pooled_summary, c("mean", "sd"), c("mean_pooled", "sd_pooled"))
+
+# Calculate summary by treatment
+summary_tmp <- long_df[, as.list(calculate_stats(Value)), 
+                       by = .(surprise, communication, Variable, stage)]
+
+# Reshape summary_tmp to wide format
+summary_wide <- dcast(summary_tmp, 
+                      Variable + stage ~ surprise + communication, 
+                      value.var = c("mean", "sd"))
+
+# Merge pooled summary with reshaped summary
+summary_table_wide <- merge(x = pooled_summary,
+                            y = summary_wide, 
+                            by = c("Variable", "stage"))
+
+# Function to format mean and sd without line break
+format_mean_sd <- function(mean, sd) {
+  sprintf("%.2f (%.2f)", mean, sd)
+}
+
+# Apply formatting
+cols_to_format <- names(summary_table_wide)[3:length(names(summary_table_wide))]
+summary_table_wide[, (cols_to_format) := lapply(.SD, as.numeric), .SDcols = cols_to_format]
+summary_table_wide[, c("Pooled", "Confirmation_point", "Confirmation_both", "Confirmation_interval", 
+                       "Contradiction_point", "Contradiction_both", "Contradiction_interval") := 
+                     .(format_mean_sd(mean_pooled, sd_pooled),
+                       format_mean_sd(mean_FALSE_point, sd_FALSE_point),
+                       format_mean_sd(mean_FALSE_both, sd_FALSE_both),
+                       format_mean_sd(mean_FALSE_interval, sd_FALSE_interval),
+                       format_mean_sd(mean_TRUE_point, sd_TRUE_point),
+                       format_mean_sd(mean_TRUE_both, sd_TRUE_both),
+                       format_mean_sd(mean_TRUE_interval, sd_TRUE_interval))]
+
+# Select only the formatted columns
+summary_table_final <- summary_table_wide[, .(Variable, stage, Pooled, 
+                                              Confirmation_point, Confirmation_both, Confirmation_interval,
+                                              Contradiction_point, Contradiction_both, Contradiction_interval)]
+
+# Create gt table
+summary_table_final %>% 
+  gt(groupname_col = "Variable") %>% 
+  cols_label(
+    stage = "Stage",
+    Pooled = "Pooled",
+    Confirmation_point = "Point",
+    Confirmation_both = "Point + interval",
+    Confirmation_interval = "Interval",
+    Contradiction_point = "Point",
+    Contradiction_both = "Point + interval",
+    Contradiction_interval = "Interval"
+  ) %>%
+  tab_spanner(
+    label = "Confirmation",
+    columns = c(Confirmation_point, Confirmation_both, Confirmation_interval)
+  ) %>%
+  tab_spanner(
+    label = "Contradiction",
+    columns = c(Contradiction_point, Contradiction_both, Contradiction_interval)
+  ) %>%
+  cols_align(
+    align = "left",
+    columns = c(Variable, stage)
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = c(Pooled, Confirmation_point, Confirmation_both, Confirmation_interval,
+                Contradiction_point, Contradiction_both, Contradiction_interval)
+  ) %>%
+  opt_row_striping() %>%
+  tab_options(
+    table.font.size = px(12),
+    data_row.padding = px(4)
+  )
+
+```
 
 
 ## Table 3
@@ -152,21 +239,6 @@ stargazer(ols_3_1, ols_3_2, ols_3_3, ols_3_4,
           type = "html", 
           df = FALSE,
           style = "qje")
-
-
-  # stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
-  #           align = TRUE, 
-  #           se = se, 
-  #           p = p,   
-  #           title = "Linear regressions: Treatment effects on b",
-  #           model.names = FALSE,
-  #           column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-  #           covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
-  #           font.size = "scriptsize",
-  #           type = "html", 
-  #           df = FALSE,
-  #           style = "qje")
-
 ```
 
 ## Table 4
@@ -231,6 +303,11 @@ stargazer(ols_4_1, ols_4_2, ols_4_3, ols_4_4, ols_4_5, ols_4_6,
           se = se_4, 
           p = p_4,   
           title = "Linear regressions: Treatment effects on ambiguity index b",
+          dep.var.caption = "Dependent variable: b",
+          dep.var.labels = " ",
+          model.names = FALSE,
+          column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
           font.size = "scriptsize",
           type = "html", 
           df = FALSE)
@@ -299,6 +376,11 @@ stargazer(ols_5_1, ols_5_2, ols_5_3, ols_5_4, ols_5_5, ols_5_6,
           se = se_5, 
           p = p_5,   
           title = "Linear regressions: Treatment effects on ambiguity index a",
+          dep.var.caption = "Dependent variable: a",
+          dep.var.labels = " ",
+          model.names = FALSE,
+          column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
           font.size = "scriptsize",
           type = "html", 
           df = FALSE)
@@ -349,7 +431,12 @@ stargazer(ols_6_1, ols_6_2, ols_6_3, ols_6_4, ols_6_5, ols_6_6,
           align = TRUE, 
           se = se_6,
           p = p_6,   
-          title = "Linear regressions: Treatment effects on Euclidian distance between vector of matching probabilities in part 1 vs. part 2",
+          title = "Linear regressions: Treatment effects on Euclidian distance between vector of matching probabilities in stage 1 vs. stage 2",
+          dep.var.caption = "Dependent variable: Euclidian distance stage 2 vs. stage 1",
+          dep.var.labels = " ",
+          model.names = FALSE,
+          column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
+          covariate.labels = c("contradiction", "both", "interval", "Constant"),
           font.size = "scriptsize",
           type = "html", 
           df = FALSE)

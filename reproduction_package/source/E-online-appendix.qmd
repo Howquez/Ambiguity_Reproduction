@@ -4,7 +4,7 @@
 
 ### Install Packages
 
-We install the following packages using the `groundhog` package manager to increase computational reproducibility.
+We install the following packages using the `{groundhog}` package manager to increase computational reproducibility.
 
 ```{r install_packages}
 #| output: false
@@ -39,9 +39,10 @@ data[,
      str_replace_all(string = cols, pattern = "^E", replacement = "m") := lapply(.SD, function(x) x / 100), 
      .SDcols = cols] 
 
-data[, p1 := 0.5 + (m1 - m23)/ (6*(mc-ms))]
-data[, p2 := 0.5 + (m2 - m13)/ (6*(mc-ms))]
-data[, p3 := 0.5 + (m3 - m12)/ (6*(mc-ms))]
+
+data[, p1 := (m1 - m23) / 6 / (mc - ms) + 0.5]
+data[, p2 := (m2 - m13) / 6 / (mc - ms) + 0.5]
+data[, p3 := (m3 - m12) / 6 / (mc - ms) + 0.5]
 ```
 
 ```{r monotonicity_subset}
@@ -113,7 +114,7 @@ plot_bars2 <- function(data, response = "p", surprise_sub = NA, limits = ylim(-0
   
   if(!is.na(surprise_sub)){
     # Plot bottom panels
-    tmp <- data[data$surprise == surprise_sub, ]
+    tmp <- data[surprise == surprise_sub]
     names(tmp)[names(tmp) == response] <- 'outcome'
     
     if(surprise_sub){
@@ -122,51 +123,55 @@ plot_bars2 <- function(data, response = "p", surprise_sub = NA, limits = ylim(-0
       title <- "Confirming Condition"
     }
     
-    test_stats_1 <- tmp %>%
-      dplyr::group_by(communication) %>%
-      rstatix::wilcox_test(formula = outcome ~ stage, paired = TRUE) %>% 
-      rstatix::adjust_pvalue(method = "none") %>%
-      rstatix::add_significance(p.col = "p.adj",
+    test_stats_1 <- tmp %>% 
+      group_by(communication) %>%
+      wilcox_test(formula = outcome ~ stage,
+                  paired = T) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
                        cutpoints = c(0, 0.01, 0.05, 0.1, 1),
-                       symbols = c("***", "**", "*", "ns")) %>%
-      dplyr::as_tibble()
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
     
-    test_stats_2 <- tmp %>%
-      dplyr::group_by(stage) %>%
-      rstatix::wilcox_test(formula = outcome ~ communication) %>% 
-      rstatix::adjust_pvalue(method = "none") %>%
-      rstatix::add_significance(p.col = "p.adj",
+    
+    test_stats_2 <- tmp %>% 
+      group_by(stage) %>%
+      wilcox_test(formula = outcome ~ communication) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
                        cutpoints = c(0, 0.01, 0.05, 0.1, 1),
-                       symbols = c("***", "**", "*", "ns")) %>%
-      dplyr::as_tibble()
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    test_stats_2 <- test_stats_2[stage == 2]
     
-    test_stats_2 <- test_stats_2[test_stats_2$stage == 2, ]
-    
-    plot_bottom <- ggplot2::ggplot(data = tmp,
-           mapping = ggplot2::aes(x = as.factor(communication), y = outcome)) +
-        ggplot2::geom_bar(ggplot2::aes(fill = stage),
+    plot_bottom <- ggplot(data = tmp,
+           mapping = aes(x = as.factor(communication),
+                         y = outcome)) +
+        geom_bar(aes(fill = stage),
                  position = "dodge", 
                  stat = "summary", 
                  fun = "mean") + 
       limits +
-      ggplot2::scale_fill_manual(values=c("black", "gray")) +
-      ggplot2::theme_classic() +
-      ggpubr::stat_pvalue_manual(data = test_stats_2,
+      scale_fill_manual(values=c("black", "gray")) +
+      theme_classic() +
+      stat_pvalue_manual(data = test_stats_2,
                          label = "{p} ({p.adj.signif})", 
                          step.group.by = "stage",
                          tip.length = 0, 
                          step.increase = 0.1, 
                          y.position = y_1) +
-      ggpubr::stat_pvalue_manual(data = test_stats_1,
+      stat_pvalue_manual(data = test_stats_1,
                          label = "{p} ({p.adj.signif})",
                          y.position = y_2,
                          tip.length = 0,
                          x = "communication") +
-      ggplot2::labs(title = title, x = "Communication", y = glue::glue("{response}"))
+      labs(title = "",
+           x = " Surprising Condition",
+           y = glue(" {response}"))
     
     rm(tmp)
     
-    return(plot_bottom)
+    plot_bottom
   } else {
     # Plot the top panel
     tmp <- data
@@ -174,51 +179,56 @@ plot_bars2 <- function(data, response = "p", surprise_sub = NA, limits = ylim(-0
     
     title <- "Both Conditions"
     
-    test_stats_1 <- tmp %>%
-      dplyr::group_by(surprise) %>%
-      rstatix::wilcox_test(formula = outcome ~ stage, paired = TRUE) %>% 
-      rstatix::adjust_pvalue(method = "none") %>%
-      rstatix::add_significance(p.col = "p.adj",
+    test_stats_1 <- tmp %>% 
+      group_by(surprise) %>%
+      wilcox_test(formula = outcome ~ stage,
+                  paired = T) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
                        cutpoints = c(0, 0.01, 0.05, 0.1, 1),
-                       symbols = c("***", "**", "*", "ns")) %>%
-      dplyr::as_tibble()
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
     
-    test_stats_2 <- tmp %>%
-      dplyr::group_by(stage) %>%
-      rstatix::wilcox_test(formula = outcome ~ surprise) %>% 
-      rstatix::adjust_pvalue(method = "none") %>%
-      rstatix::add_significance(p.col = "p.adj",
+    
+    test_stats_2 <- tmp %>% 
+      group_by(stage) %>%
+      wilcox_test(formula = outcome ~ surprise) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
                        cutpoints = c(0, 0.01, 0.05, 0.1, 1),
-                       symbols = c("***", "**", "*", "ns")) %>%
-      dplyr::as_tibble()
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    test_stats_2 <- test_stats_2[stage == 2]
     
-    test_stats_2 <- test_stats_2[test_stats_2$stage == 2, ]
     
-    plot_top <- ggplot2::ggplot(data = tmp,
-           mapping = ggplot2::aes(x = as.factor(surprise), y = outcome)) +
-        ggplot2::geom_bar(ggplot2::aes(fill = stage),
+    plot_top <- ggplot(data = tmp,
+           mapping = aes(x = as.factor(surprise),
+                         y = outcome)) +
+        geom_bar(aes(fill = stage),
                  position = "dodge", 
                  stat = "summary", 
                  fun = "mean") + 
       limits +
-      ggplot2::scale_fill_manual(values=c("black", "gray")) +
-      ggplot2::theme_classic() +
-      ggpubr::stat_pvalue_manual(data = test_stats_2,
+      scale_fill_manual(values=c("black", "gray")) +
+      theme_classic() +
+      stat_pvalue_manual(data = test_stats_2,
                          label = "{p} ({p.adj.signif})", 
                          step.group.by = "stage",
                          tip.length = 0, 
                          step.increase = 0.1, 
                          y.position = y_1) +
-      ggpubr::stat_pvalue_manual(data = test_stats_1,
+      stat_pvalue_manual(data = test_stats_1,
                          label = "{p} ({p.adj.signif})",
                          y.position = y_2,
                          tip.length = 0,
                          x = "surprise") +
-      ggplot2::labs(title = title, x = " Surprising Condition", y = glue::glue("{response}"))
+      labs(title = "",
+           x = " Surprising Condition",
+           y = glue(" {response}"))
     
     rm(tmp)
     
-    return(plot_top)
+    plot_top
   }
 }
 ```
@@ -228,27 +238,31 @@ plot_bars2 <- function(data, response = "p", surprise_sub = NA, limits = ylim(-0
 
 We now consider the effects of information on so-called ambiguity neutral probabilities which have been suggested in @LiTurmunkhWakker_2019. This analysis complements the investigations on the effect on the probability equivalents for the individual events that are discussed in the main part of the paper.
 
-Ambiguity-neutral probabilities are calculated according to equation (3.3) from @LiTurmunkhWakker_2019 [p. 56] which we simplify as follows:
+Ambiguity-neutral probabilities are based on finding the neo-additive probability distribution
+[e.g., @Baillon2017; @Baillon_2021] with weights $w(E) = \tau + \sigma P(E)$ given to events $E$ that minimizes the Euclidian distance to the observed matching probabilities distribution. @LiTurmunkhWakker_2019.
+show that $\sigma = 1-a$, $\tau = b - (1-a)/2$ and that the ambiguity-neutral probabilities $(p_1,p_2,p_3)$
+are given by the following expression (see their equation (3.3)):
 
 $$
-\begin{align*}
-    p_1&=\frac{3(\overline{m_c}-\overline{m_s})+3m_1-3m_{23}+2(1-a)}{6(1-a)}\\
-    &=\frac{3(\overline{m_c}-\overline{m_s})+3m_1-3m_{23}+2(1-(3 \times (\frac{1}{3} -(\overline{m_c}-\overline{m_s}))))}{6(1-(3 \times (\frac{1}{3} -(\overline{m_c}-\overline{m_s}))))}\\
-        &=\frac{1}{2}+\frac{m_1-m_{23}}{6(\overline{m_c}-\overline{m_s})}.
-\end{align*}
+\begin{aligned}
+p_i &= \frac{3(\overline{m_c} - \overline{m_s}) + 3m_i - 3m_{jk} + 2(1-a)}{6(1-a)} \\
+&= \frac{3(\overline{m_c} - \overline{m_s}) + 3m_i - 3m_{jk} + 2(1-(3 \times (\frac{1}{3} - (\overline{m_c} - \overline{m_s}))))}{6(1-(3 \times (\frac{1}{3} - (\overline{m_c} - \overline{m_s}))))} \\
+&= \frac{1}{2} + \frac{m_i - m_{jk}}{6(\overline{m_c} - \overline{m_s})}.
+\end{aligned}
 $$
 
+with $i,j,k \in \{1,2,3\}$ being mutually different numbers.
 
-We calculate  $p_2$ and $p_3$ accordingly. For the following analyses, we have adjusted our sample so that we meet the assumptions of @LiTurmunkhWakker_2019, namely we have removed all participants who have at least one part with $a=1$ or violate monotonicity ($m_i\leq m_{jk}$) at least once in part 1 or part 2 (see @lst-plot).  In total, this excludes 1200 participants.
+For the following analyses, we have adjusted our sample so that we meet the assumptions of @LiTurmunkhWakker_2019, namely we have removed all participants who have at least one part with $a = 1$ or violate monotonicity $(m_i ≤ m_{jk})$ at least once in part 1 or part 2. In total, this excludes 1200 participants.
 
-The structure of the presentation of results follows the discussion in the main part of the paper.
+The structure of the presentation of results follows the discussion in the main part of the paper. We see that on average confirmation messages decrease the probability weight on E1 and E3 and increase the weight given to E2. In contrast, contradiction treatments increase $p_1$ and decrease $p_3$, while the change of $p_2$ is insignificant. These treatment effects on the ambiguity-neutral probabilities thus are consistent with our discussion in section 3.2 on the probability equivalents mi given to the respective events. Separating the different information treatments, we see that the updating of a-neutral probabilities in the confirmation treatments occurs primarily when only the best guess is communicated, while significant updates only results in the contradiction treatments that acknowledge uncertainty. Yet, none of the treatment differences (best guess vs. interval vs. both) are significant. Overall, the analysis of the ambiguity-neutral probabilities is thus in line with the pre-registered analysis of the matching probabilities given to the events Ei which are discussed in the main text and illustrated in @sec-OAB.
 
 
 ### Figure OE.1
 
 ```{r fig_oe1}
 #| label: fig-oe1
-#| fig-cap: 'A-neutral probability $p_1$ separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note:	$^{*}$p$<$0.10, $^{**}$p$<$0.05, $^{***}$p$<$0.01, ns: not significant'
+#| fig-cap: 'A-neutral probability $p_1$ separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note:	$^{*}$p<0.10, $^{**}$p<0.05, $^{***}$p<0.01, ns: not significant'
 
 top   <- plot_bars2(data = subset, response = "p1", surprise_sub = NA)
 left  <- plot_bars2(data = subset, response = "p1", surprise_sub = FALSE)
@@ -261,7 +275,7 @@ right <- plot_bars2(data = subset, response = "p1", surprise_sub = TRUE)
 
 ```{r fig_oe2}
 #| label: fig-oe2
-#| fig-cap: 'A-neutral probability $p_2$ separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note:	$^{*}$p$<$0.10, $^{**}$p$<$0.05, $^{***}$p$<$0.01, ns: not significant'
+#| fig-cap: 'A-neutral probability $p_2$ separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note:	$^{*}$p<0.10, $^{**}$p<0.05, $^{***}$p<0.01, ns: not significant'
 
 top   <- plot_bars2(data = subset, response = "p2", surprise_sub = NA)
 left  <- plot_bars2(data = subset, response = "p2", surprise_sub = FALSE)
@@ -274,7 +288,7 @@ right <- plot_bars2(data = subset, response = "p2", surprise_sub = TRUE)
 
 ```{r fig_oe3}
 #| label: fig-oe3
-#| fig-cap: 'A-neutral probability $p_3$ separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note:	$^{*}$p$<$0.10, $^{**}$p$<$0.05, $^{***}$p$<$0.01, ns: not significant'
+#| fig-cap: 'A-neutral probability $p_3$ separated by treatments and part 1 and part 2. P-values of Wilcoxon signed-rank test comparing part 1 and 2 directly above the mean values. P-values of Wilcoxon–Mann–Whitney test comparing part 2 of different treatments at the top. Note:	$^{*}$p<0.10, $^{**}$p<0.05, $^{***}$p<0.01, ns: not significant'
 
 top   <- plot_bars2(data = subset, response = "p3", surprise_sub = NA)
 left  <- plot_bars2(data = subset, response = "p3", surprise_sub = FALSE)
@@ -347,13 +361,14 @@ ols_1 <- lm(formula = p1 ~ surprise + treated + surprise * treated,
             se = se, 
             p = p,   
             title = "Linear regressions: Treatment effects on p1",
+            dep.var.caption = "Dependent variable: p1",
+            dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE,
-            style = "qje")
+            df = FALSE)
 ```
 
 
@@ -421,13 +436,14 @@ ols_1 <- lm(formula = p2 ~ surprise + treated + surprise * treated,
             se = se, 
             p = p,   
             title = "Linear regressions: Treatment effects on p2",
+            dep.var.caption = "Dependent variable: p2",
+            dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE,
-            style = "qje")
+            df = FALSE)
 ```
 
 
@@ -495,13 +511,14 @@ ols_1 <- lm(formula = p3 ~ surprise + treated + surprise * treated,
             se = se, 
             p = p,   
             title = "Linear regressions: Treatment effects on p3",
+            dep.var.caption = "Dependent variable: p3",
+            dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "both x stage2", "interval x stage2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE,
-            style = "qje")
+            df = FALSE)
 ```
 
 
@@ -550,17 +567,195 @@ stargazer(ols_6_1, ols_6_2, ols_6_3, ols_6_4, ols_6_5, ols_6_6,
           align = TRUE, 
           se = se_6,
           p = p_6,   
-          title = "Linear regressions: Treatment effects on Euclidian distance between vector of matching probabilities in part 1 vs. part 2",
-          model.names = FALSE,
+          title = "Linear regressions: Treatment effects on Euclidian distance between vector of matching probabilities in stage 1 vs. stage 2",
+          dep.var.caption = "Dependent variable: Euclidian distance stage 2 vs. stage 1",
+            dep.var.labels = " ",
+            model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval",  "Constant"),
-          font.size = "scriptsize",
-          type = "html", 
-          df = FALSE,
-          style = "qje")
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
+            font.size = "scriptsize",
+            type = "html", 
+            df = FALSE)
 
 ```
 
 ### Figure OE.4
+
+We proceed as in @sec-fig-3:
+
+```{r covariates_top}
+none <- c("surprise", "treated", "surprise*treated")
+
+demographics <- c(none, "age_35_52","age_53_plus","female", "high_education", "high_income", "married", "parentship")
+
+all <- c(demographics, "high_temperature","high_usage","high_general_risk","high_weather_risk","high_accuracy","high_credibility")
+```
+
+```{r data_top}
+ci_top <- data.table()
+for(RHS in c("none", "demographics", "all")){
+  for(LHS in c("p1", "p2", "p3")){
+    ols <- lm(formula = reformulate(termlabels = get(RHS), 
+                                    response = LHS),
+              data = subset)
+    
+    tmp <- coefci(x = ols,
+                  parm = "surpriseTRUE:treatedTRUE",
+                  vcov = vcovCL(x = ols, 
+                                cluster = subset$participant.label, 
+                                type = "HC1"),
+                  level = 0.95) %>% 
+      data.table(model = RHS, outcome = LHS)
+    tmp[, center := (`2.5 %` + `97.5 %`)/2]
+    
+    ci_top <- rbind(ci_top, tmp)
+    
+  }
+}
+```
+
+```{r viz_top}
+top <- ggplot(data = ci_top,
+       mapping = aes(y = outcome)) +
+  geom_pointrange(mapping = aes(x = center,
+                                y = outcome,
+                                xmin = `2.5 %`,
+                                xmax = `97.5 %`,
+                                shape = factor(model)),
+                  data = ci_top,
+                  position = position_dodge(width = 0.4),
+                  fatten=5,
+                  alpha=.8) +
+  geom_vline(xintercept = 0, 
+             color = "red", 
+             alpha = 0.66, 
+             show.legend = FALSE) +
+  theme_bw() +
+  labs(#title = "(a) Effect of contradiction (relative to confirmation)",
+       y = "Event", 
+       x = "Estimate",
+       shape="Control variables")
+```
+
+```{r covariates_left}
+none <- c("communication", "treated", "communication*treated")
+
+demographics <- c(none, "age_35_52","age_53_plus","female", "high_education", "high_income", "married", "parentship")
+
+all <- c(demographics, "high_temperature","high_usage","high_general_risk","high_weather_risk","high_accuracy","high_credibility")
+```
+
+
+```{r data_left}
+ci_left <- data.table()
+for(RHS in c("none", "demographics", "all")){
+  for(LHS in c("p1", "p2", "p3")){
+    ols <- lm(formula = reformulate(termlabels = get(RHS), 
+                                    response = LHS),
+              data = subset,
+              subset = (surprise == FALSE))
+    for(communication in c("interval", "both")){
+      tmp <- coefci(x = ols,
+                    parm = paste0("communication", communication, ":treatedTRUE"),
+                    vcov = vcovCL(x = ols, 
+                                  cluster = subset[surprise == FALSE,
+                                                   participant.label], 
+                                  type = "HC1"),
+                    level = 0.95) %>% 
+        data.table(model = RHS, outcome = paste0(LHS, " (", communication, ")"))
+      tmp[, center := (`2.5 %` + `97.5 %`)/2]
+      
+      ci_left <- rbind(ci_left, tmp)
+    
+    }
+  }
+}
+```
+
+```{r viz_left}
+left <- ggplot(data = ci_left,
+       mapping = aes(y = outcome)) +
+  geom_pointrange(mapping = aes(x = center,
+                                y = outcome,
+                                xmin = `2.5 %`,
+                                xmax = `97.5 %`,
+                                shape = factor(model)),
+                  data = ci_left,
+                  position = position_dodge(width = 0.4),
+                  fatten=5,
+                  alpha=.8) +
+  geom_vline(xintercept = 0, 
+             color = "red", 
+             alpha = 0.66, 
+             show.legend = FALSE) +
+  theme_bw() +
+  labs(#title = "(b) Effect of information treatments (both, interval) relative to best guess, confirmation treatments",
+       y = "Event", 
+       x = "Estimate",
+       shape="Control variables")
+```
+
+```{r data_right}
+ci_right <- data.table()
+for(RHS in c("none", "demographics", "all")){
+  for(LHS in c("p1", "p2", "p3")){
+    ols <- lm(formula = reformulate(termlabels = get(RHS), 
+                                    response = LHS),
+              data = subset,
+              subset = (surprise == TRUE))
+    for(communication in c("interval", "both")){
+      tmp <- coefci(x = ols,
+                    parm = paste0("communication", communication, ":treatedTRUE"),
+                    vcov = vcovCL(x = ols, 
+                                  cluster = subset[surprise == TRUE,
+                                                   participant.label], 
+                                  type = "HC1"),
+                    level = 0.95) %>% 
+        data.table(model = RHS, outcome = paste0(LHS, " (", communication, ")"))
+      tmp[, center := (`2.5 %` + `97.5 %`)/2]
+      
+      ci_right <- rbind(ci_right, tmp)
+    }
+  }
+}
+```
+
+
+```{r viz_right}
+right <- ggplot(data = ci_right,
+       mapping = aes(y = outcome)) +
+  geom_pointrange(mapping = aes(x = center,
+                                y = outcome,
+                                xmin = `2.5 %`,
+                                xmax = `97.5 %`,
+                                shape = factor(model)),
+                  data = ci_right,
+                  position = position_dodge(width = 0.4),
+                  fatten=5,
+                  alpha=.8) +
+  geom_vline(xintercept = 0, 
+             color = "red", 
+             alpha = 0.66, 
+             show.legend = FALSE) +
+  theme_bw() +
+  labs(#title = "(c) Effect of information treatments (both, interval) relative to best guess, contradiction treatments",
+       y = "Event", 
+       x = "Estimate",
+       shape="Control variables") +
+  scale_y_discrete(position = "right")
+```
+
+
+As before, we use the `{{patchwork}}` package to assmeble the plot objects.
+
+```{r fig-OE4}
+#| label: fig-OE4S
+#| fig-cap: 'Treatment effects of regression equation (1) with dependent variables $p_1$, $p_2$, and $p_3$. Estimators with 95% confidence intervals. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020).'
+(top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+```
+
+Note that the order of both, the y-axis as well as the control variables is different compared to the Figure in the manuscript.
+
+## References
 
 

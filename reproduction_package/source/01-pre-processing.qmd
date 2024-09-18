@@ -148,7 +148,7 @@ We now change the data class of `communication` and make it a factor.
 
 ```{r factorize}
 event_data[, communication := as.factor(communication)]
-event_data[, communication := factor(communication, levels = c("point", "interval", "both"))]
+event_data[, communication := factor(communication, levels = c("point", "both", "interval"))]
 
 event_data[, stage := as.factor(stage)]
 event_data[, stage := factor(stage, 

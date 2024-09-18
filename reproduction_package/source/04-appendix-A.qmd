@@ -26,7 +26,7 @@ rm(pkgs)
 ### Read Data
 
 ```{r read_data}
-data      <- readRDS(file="../data/processed/full.Rda")
+data <- readRDS(file="../data/processed/full.Rda")
 ```
 
 ```{r covariates}
@@ -36,79 +36,113 @@ covariates <- data[stage == 1, ..vars]
 
 ## Table A.1
 
+Using the `{gt}` package, we produce Table A.1 in the steps. First, we create a table containing all the covariates that are treated dummies or continuous variables (see @tbl-A-1-a). In a second step, we create @tbl-A-1-b as a separate table. 
+
 ```{r partial_summary_table}
-#| label: tbl-A.1
+#| label: tbl-A-1-a
 #| tbl-cap: "Descriptive statistics (control variables): Mean values per treatment"
 
 long_df <- melt(covariates, 
                 id.vars = c("surprise", "communication"), 
-                measure.vars = c("age_18_34", "age_35_52", "age_53_plus", "female", 
-                                 "high_education", "high_income", "married", "parentship", 
-                                 "high_temperature", "high_usage", "high_general_risk", 
-                                 "high_weather_risk", "high_accuracy", "high_credibility",
-                                 "temperature", "usage", "general_risk", 
-                                 "weather_risk", "accuracy", "credibility"),
+                measure.vars = c("age_18_34", "age_35_52", "age_53_plus", "female", "high_education", "high_income", "married", "parentship", "high_temperature", "high_usage", "high_general_risk", "high_weather_risk", "high_accuracy", "high_credibility", "temperature", "usage", "general_risk", "weather_risk", "accuracy", "credibility"), 
                 variable.name = "Variable", 
                 value.name = "Value")
 
-pooled_summary <- long_df[, .(N = sum(!is.na(Value)),
-                              Mean = mean(Value, na.rm = TRUE)), 
+pooled_summary <- long_df[, 
+                          .(N = sum(!is.na(Value)), 
+                            Mean = mean(Value, na.rm = TRUE)), 
                           by = .(Variable)]
 
-summary_tmp <- long_df[, .(N = sum(!is.na(Value)),
-                             Mean = mean(Value, na.rm = TRUE)), 
-                         by = .(surprise, communication, Variable)]
+summary_tmp <- long_df[, 
+                       .(N = sum(!is.na(Value)), 
+                         Mean = mean(Value, na.rm = TRUE)), 
+                       by = .(surprise, communication, Variable)]
 
-summary_table <- merge(pooled_summary, summary_tmp, by = "Variable", suffixes = c("_pooled", ""))
+summary_table <- merge(pooled_summary, 
+                       summary_tmp, 
+                       by = "Variable", 
+                       suffixes = c("_pooled", ""))
 
-
-summary_table_wide <- dcast(summary_table, Variable + N_pooled + Mean_pooled ~ surprise + communication, 
+summary_table_wide <- dcast(summary_table, 
+                            Variable + N_pooled + Mean_pooled ~ surprise + communication, 
                             value.var = c("N", "Mean"))
 
-setcolorder(summary_table_wide, 
-            c("Variable", "N_pooled", "Mean_pooled", 
-              "N_FALSE_point", "Mean_FALSE_point", 
-              "N_FALSE_interval", "Mean_FALSE_interval", 
-              "N_FALSE_both", "Mean_FALSE_both", 
-              "N_TRUE_point", "Mean_TRUE_point", 
-              "N_TRUE_interval", "Mean_TRUE_interval", 
-              "N_TRUE_both", "Mean_TRUE_both"))
+setcolorder(summary_table_wide, c("Variable", "N_pooled", "Mean_pooled", 
+                                  "N_FALSE_point", "Mean_FALSE_point", 
+                                  "N_FALSE_both", "Mean_FALSE_both", 
+                                  "N_FALSE_interval", "Mean_FALSE_interval", 
+                                  "N_TRUE_point", "Mean_TRUE_point", 
+                                  "N_TRUE_both", "Mean_TRUE_both", 
+                                  "N_TRUE_interval", "Mean_TRUE_interval"))
 
-summary_table_wide %>%
-  gt() %>%
+summary_table_wide %>% 
+  gt() %>% 
   cols_label(
     Variable = "Treatment Variable",
     N_pooled = "N", Mean_pooled = "Mean",
-    N_TRUE_point = "N", Mean_TRUE_point = "Mean",
-    N_TRUE_interval = "N", Mean_TRUE_interval = "Mean",
-    N_TRUE_both = "N", Mean_TRUE_both = "Mean",
     N_FALSE_point = "N", Mean_FALSE_point = "Mean",
+    N_FALSE_both = "N", Mean_FALSE_both = "Mean",
     N_FALSE_interval = "N", Mean_FALSE_interval = "Mean",
-    N_FALSE_both = "N", Mean_FALSE_both = "Mean") %>%
+    N_TRUE_point = "N", Mean_TRUE_point = "Mean",
+    N_TRUE_both = "N", Mean_TRUE_both = "Mean",
+    N_TRUE_interval = "N", Mean_TRUE_interval = "Mean"
+  ) %>%
   tab_spanner(
     label = "Pooled",
-    columns = c(N_pooled, Mean_pooled)) %>%
-  tab_spanner(
-    label = "Point",
-    columns = c(N_TRUE_point, Mean_TRUE_point, N_FALSE_point, Mean_FALSE_point)) %>%
-  tab_spanner(
-    label = "Interval",
-    columns = c(N_TRUE_interval, Mean_TRUE_interval, N_FALSE_interval, Mean_FALSE_interval)) %>%
-  tab_spanner(
-    label = "Point + Interval",
-    columns = c(N_TRUE_both, Mean_TRUE_both, N_FALSE_both, Mean_FALSE_both)) %>%
+    columns = c(N_pooled, Mean_pooled)
+  ) %>%
   tab_spanner(
     label = "Confirmation",
-    columns = c(N_FALSE_point, Mean_FALSE_point, N_FALSE_interval, Mean_FALSE_interval, N_FALSE_both, Mean_FALSE_both)) %>%
+    columns = c(N_FALSE_point, Mean_FALSE_point, N_FALSE_both, Mean_FALSE_both, N_FALSE_interval, Mean_FALSE_interval)
+  ) %>%
   tab_spanner(
     label = "Contradiction",
-    columns = c(N_TRUE_point, Mean_TRUE_point, N_TRUE_interval, Mean_TRUE_interval, N_TRUE_both, Mean_TRUE_both)) %>%
+    columns = c(N_TRUE_point, Mean_TRUE_point, N_TRUE_both, Mean_TRUE_both, N_TRUE_interval, Mean_TRUE_interval)
+  ) %>%
+  tab_spanner(
+    label = "Point",
+    id = "conf_point",
+    columns = c(N_FALSE_point, Mean_FALSE_point),
+    level = 2
+  ) %>%
+  tab_spanner(
+    label = "Both",
+    id = "conf_both",
+    columns = c(N_FALSE_both, Mean_FALSE_both),
+    level = 2
+  ) %>%
+  tab_spanner(
+    label = "Interval",
+    id = "conf_interval",
+    columns = c(N_FALSE_interval, Mean_FALSE_interval),
+    level = 2
+  ) %>%
+  tab_spanner(
+    label = "Point",
+    id = "contra_point",
+    columns = c(N_TRUE_point, Mean_TRUE_point),
+    level = 2
+  ) %>%
+  tab_spanner(
+    label = "Both",
+    id = "contra_both",
+    columns = c(N_TRUE_both, Mean_TRUE_both),
+    level = 2
+  ) %>%
+  tab_spanner(
+    label = "Interval",
+    id = "contra_interval",
+    columns = c(N_TRUE_interval, Mean_TRUE_interval),
+    level = 2
+  ) %>%
   fmt_number(
     columns = starts_with("Mean"),
-    decimals = 3) %>%
+    decimals = 3
+  ) %>%
   fmt_number(
     columns = starts_with("N"),
-    decimals = 0) %>%
+    decimals = 0
+  ) %>%
   cols_align(
     align = "left",
     columns = c(Variable)
@@ -117,105 +151,131 @@ summary_table_wide %>%
 ```
 
 ```{r}
-#| eval: false
-#| echo: false
-#| 
-# Including comprehension and other continuous variables in the melt step
-long_df <- melt(covariates, 
-                id.vars = c("surprise", "communication"), 
-                measure.vars = c("age_18_34", "age_35_52", "age_53_plus", "female", 
-                                 "high_education", "high_income", "married", "parentship", 
-                                 "high_temperature", "high_usage", "high_general_risk", 
-                                 "high_weather_risk", "high_accuracy", "high_credibility", 
-                                 "comprehension"),
-                variable.name = "Variable", 
-                value.name = "Value")
+#| label: tbl-A-1-b
+#| tbl-cap: "Descriptive statistics (control variables): Mean values per treatment"
 
-long_df[, Variable := as.character(Variable)]
+# Calculate total observations for each treatment arm
+total_obs <- covariates[, .(n = .N), by = .(surprise, communication)]
 
-# Summarize the data
-non_comprehension_summary <- long_df[Variable != "comprehension", 
-                                     .(N = sum(!is.na(Value)),
-                                       Mean = mean(Value, na.rm = TRUE)), 
-                                     by = .(surprise, communication, Variable)]
+# Create a summary of the comprehension variable
+comprehension_summary <- covariates[, .(n = .N), by = .(surprise, communication, comprehension)]
+comprehension_summary[, percentage := n / sum(n) * 100, by = .(surprise, communication)]
 
-comprehension_summary <- long_df[Variable == "comprehension", 
-                                 .(N = sum(!is.na(Value)),
-                                   Mean = paste0(round(prop.table(table(Value)) * 100, 1), "%")), 
-                                 by = .(surprise, communication, Variable)]
+# Reshape the data to wide format
+comprehension_wide <- dcast(comprehension_summary, 
+                            comprehension ~ surprise + communication, 
+                            value.var = c("n", "percentage"))
 
-# Expand the comprehension_summary to include each level of comprehension
-comprehension_summary <- comprehension_summary[, .(
-  Variable = paste("comprehension", names(table(Value)), sep = " - "),
-  N = N,
-  Mean = unlist(Mean)
-), by = .(surprise, communication)]
+# Calculate pooled values
+comprehension_wide[, n_pooled := rowSums(.SD), .SDcols = patterns("^n_")]
+comprehension_wide[, percentage_pooled := n_pooled / sum(n_pooled) * 100]
 
-summary_table <- rbind(non_comprehension_summary, comprehension_summary, use.names = TRUE)
+# Create a row for total observations
+total_row <- data.table(
+  comprehension = "Total",
+  n_pooled = sum(total_obs$n),
+  percentage_pooled = NA_real_,  # Set to NA to hide the percentage
+  n_FALSE_point = total_obs[surprise == FALSE & communication == "point", n],
+  percentage_FALSE_point = NA_real_,  # Set to NA to hide the percentage
+  n_FALSE_both = total_obs[surprise == FALSE & communication == "both", n],
+  percentage_FALSE_both = NA_real_,  # Set to NA to hide the percentage
+  n_FALSE_interval = total_obs[surprise == FALSE & communication == "interval", n],
+  percentage_FALSE_interval = NA_real_,  # Set to NA to hide the percentage
+  n_TRUE_point = total_obs[surprise == TRUE & communication == "point", n],
+  percentage_TRUE_point = NA_real_,  # Set to NA to hide the percentage
+  n_TRUE_both = total_obs[surprise == TRUE & communication == "both", n],
+  percentage_TRUE_both = NA_real_,  # Set to NA to hide the percentage
+  n_TRUE_interval = total_obs[surprise == TRUE & communication == "interval", n],
+  percentage_TRUE_interval = NA_real_  # Set to NA to hide the percentage
+)
 
+# Combine total row with comprehension data
+comprehension_wide <- rbindlist(list(total_row, comprehension_wide), fill = TRUE)
 
-summary_table_wide <- dcast(summary_table, Variable ~ surprise + communication, 
-                            value.var = c("N", "Mean"))
-
-# Set the correct column order
-setcolorder(summary_table_wide, 
-            c("Variable", 
-              "N_FALSE_point", "Mean_FALSE_point", 
-              "N_FALSE_interval", "Mean_FALSE_interval", 
-              "N_FALSE_both", "Mean_FALSE_both", 
-              "N_TRUE_point", "Mean_TRUE_point", 
-              "N_TRUE_interval", "Mean_TRUE_interval", 
-              "N_TRUE_both", "Mean_TRUE_both"))
-
-# Format the table with gt
-gt_table <- summary_table_wide %>%
+# Create the table
+gt_table <- comprehension_wide %>%
   gt() %>%
-  tab_header(
-    title = md("**Descriptive statistics (control variables): Mean values per treatment**")
-  ) %>%
   cols_label(
-    Variable = "Treatment Variable",
-    N_TRUE_point = "N", Mean_TRUE_point = "Mean",
-    N_TRUE_interval = "N", Mean_TRUE_interval = "Mean",
-    N_TRUE_both = "N", Mean_TRUE_both = "Mean",
-    N_FALSE_point = "N", Mean_FALSE_point = "Mean",
-    N_FALSE_interval = "N", Mean_FALSE_interval = "Mean",
-    N_FALSE_both = "N", Mean_FALSE_both = "Mean"
+    comprehension = "comprehension",
+    n_pooled = "N", percentage_pooled = "%",
+    n_FALSE_point = "N", percentage_FALSE_point = "%",
+    n_FALSE_both = "N", percentage_FALSE_both = "%",
+    n_FALSE_interval = "N", percentage_FALSE_interval = "%",
+    n_TRUE_point = "N", percentage_TRUE_point = "%",
+    n_TRUE_both = "N", percentage_TRUE_both = "%",
+    n_TRUE_interval = "N", percentage_TRUE_interval = "%"
   ) %>%
   tab_spanner(
-    label = "Contradiction",
-    columns = c(N_TRUE_point, Mean_TRUE_point, N_TRUE_interval, Mean_TRUE_interval, N_TRUE_both, Mean_TRUE_both)
+    label = "Pooled",
+    columns = c(n_pooled, percentage_pooled)
   ) %>%
   tab_spanner(
     label = "Confirmation",
-    columns = c(N_FALSE_point, Mean_FALSE_point, N_FALSE_interval, Mean_FALSE_interval, N_FALSE_both, Mean_FALSE_both)
+    columns = c(n_FALSE_point, percentage_FALSE_point, n_FALSE_both, percentage_FALSE_both, n_FALSE_interval, percentage_FALSE_interval),
+    level = 1
+  ) %>%
+  tab_spanner(
+    label = "Contradiction",
+    columns = c(n_TRUE_point, percentage_TRUE_point, n_TRUE_both, percentage_TRUE_both, n_TRUE_interval, percentage_TRUE_interval),
+    level = 1
   ) %>%
   tab_spanner(
     label = "Point",
-    columns = c(N_TRUE_point, Mean_TRUE_point, N_FALSE_point, Mean_FALSE_point)
+    id = "conf_point",
+    columns = c(n_FALSE_point, percentage_FALSE_point),
+    level = 2
+  ) %>%
+  tab_spanner(
+    label = "Both",
+    id = "conf_both",
+    columns = c(n_FALSE_both, percentage_FALSE_both),
+    level = 2
   ) %>%
   tab_spanner(
     label = "Interval",
-    columns = c(N_TRUE_interval, Mean_TRUE_interval, N_FALSE_interval, Mean_FALSE_interval)
+    id = "conf_interval",
+    columns = c(n_FALSE_interval, percentage_FALSE_interval),
+    level = 2
   ) %>%
   tab_spanner(
-    label = "Point + Interval",
-    columns = c(N_TRUE_both, Mean_TRUE_both, N_FALSE_both, Mean_FALSE_both)
+    label = "Point",
+    id = "contra_point",
+    columns = c(n_TRUE_point, percentage_TRUE_point),
+    level = 2
+  ) %>%
+  tab_spanner(
+    label = "Both",
+    id = "contra_both",
+    columns = c(n_TRUE_both, percentage_TRUE_both),
+    level = 2
+  ) %>%
+  tab_spanner(
+    label = "Interval",
+    id = "contra_interval",
+    columns = c(n_TRUE_interval, percentage_TRUE_interval),
+    level = 2
   ) %>%
   fmt_number(
-    columns = vars(starts_with("Mean")),
-    decimals = 3
+    columns = contains("percentage"),
+    decimals = 1,
+    suffix = "%"
   ) %>%
   fmt_number(
-    columns = vars(starts_with("N")),
+    columns = starts_with("n"),
     decimals = 0
   ) %>%
   cols_align(
     align = "left",
-    columns = vars(Variable)
-  )
+    columns = c(comprehension)
+  ) %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      rows = 1
+    )
+  ) %>%
+  fmt_missing(columns = everything(), missing_text = "") 
 
-# Display the table
 gt_table
 ```
 

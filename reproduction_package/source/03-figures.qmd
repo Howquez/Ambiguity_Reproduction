@@ -207,7 +207,7 @@ right <- plot_bars(response = "a", limits = ylim(-2.01, 4.01), surprise_sub = TR
 (top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
 ```
 
-## Figure 3
+## Figure 3 {#sec-fig-3}
 
 @fig-3 also presents three panels. In contrast to @fig-1 and @fig-2, these panels visualize confidence intervals of our estimator of interest: the interaction of `stage` and `surprise` (top panel) as well as the interaction between `stage` and `communication` in the lower two panels.
 

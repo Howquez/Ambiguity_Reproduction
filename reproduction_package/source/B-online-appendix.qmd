@@ -1,4 +1,4 @@
-# Online Appendix B
+# Online Appendix B {#sec-OAB}
 
 ## Setup
 
@@ -30,16 +30,6 @@ rm(pkgs)
 data <- readRDS(file="../data/processed/full.Rda")
 ```
 
-### Manipulate Data
-
-`[Shall we add this code chunk to the pre-processing?]`
-
-```{r factorize}
-data[, communication := as.factor(communication)]
-data[, communication := factor(communication, levels = c("point", "both","interval"))]
-data[, stage := as.factor(stage)]
-data[, stage := factor(stage, levels = c("1", "2"))]
-```
 
 ### Design
 
@@ -67,8 +57,9 @@ layout <- theme(panel.background = element_rect(fill = "white"),
 ### Helper Function
 
 ```{r bar_function}
-#| lst-label: lst-plot-bars
-#| lst-cap: plot_bars()
+#| eval: false
+#| include: false
+#| echo: false
 
 plot_bars <- function(response = "E", surprise_sub = NA, limits = ylim(-0.1, 100.1)){
   
@@ -201,6 +192,142 @@ plot_bars <- function(response = "E", surprise_sub = NA, limits = ylim(-0.1, 100
 }
 
 ```
+
+```{r}
+#| lst-label: lst-plot-bars
+#| lst-cap: plot_bars()
+
+plot_bars <- function(response = "b", surprise_sub = NA, limits = ylim(-0.1, 100.1)){
+  
+  if(response == "b"){
+      y_1 = 75
+      y_2 = 55
+    } else {
+      y_1 = 75
+      y_2 = 60
+    }
+  
+  if(!is.na(surprise_sub)){
+    # Plot bottom panels
+    tmp <- data[surprise == surprise_sub]
+    names(tmp)[names(tmp) == response] <- 'outcome'
+    
+    if(surprise_sub){
+      title <- "Surprising Condition"
+    } else {
+      title <- "Confirming Condition"
+    }
+    
+    test_stats_1 <- tmp %>% 
+      group_by(communication) %>%
+      wilcox_test(formula = outcome ~ stage,
+                  paired = T) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    
+    
+    test_stats_2 <- tmp %>% 
+      group_by(stage) %>%
+      wilcox_test(formula = outcome ~ communication) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    test_stats_2 <- test_stats_2[stage == 2]
+    
+    plot_bottom <- ggplot(data = tmp,
+           mapping = aes(x = as.factor(communication),
+                         y = outcome)) +
+        geom_bar(aes(fill = stage),
+                 position = "dodge", 
+                 stat = "summary", 
+                 fun = "mean") + 
+      limits +
+      scale_fill_manual(values=c("black", "gray")) +
+      theme_classic() +
+      stat_pvalue_manual(data = test_stats_2,
+                         label = "{p} ({p.adj.signif})", 
+                         step.group.by = "stage",
+                         tip.length = 0, 
+                         step.increase = 0.1, 
+                         y.position = y_1) +
+      stat_pvalue_manual(data = test_stats_1,
+                         label = "{p} ({p.adj.signif})",
+                         y.position = y_2,
+                         tip.length = 0,
+                         x = "communication") +
+      labs(title = "",
+           x = " Surprising Condition",
+           y = glue(" {response}"))
+    
+    rm(tmp)
+    
+    plot_bottom
+  } else {
+    # Plot the top panel
+    tmp <- data
+    names(tmp)[names(tmp) == response] <- 'outcome'
+    
+    title <- "Both Conditions"
+    
+    test_stats_1 <- tmp %>% 
+      group_by(surprise) %>%
+      wilcox_test(formula = outcome ~ stage,
+                  paired = T) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    
+    
+    test_stats_2 <- tmp %>% 
+      group_by(stage) %>%
+      wilcox_test(formula = outcome ~ surprise) %>% 
+      adjust_pvalue(method = "none") %>%
+      add_significance(p.col = "p.adj",
+                       cutpoints = c(0, 0.01, 0.05, 0.1, 1),
+                       symbols = c( "***", "**", "*", "ns")) %>%
+      as.data.table()
+    test_stats_2 <- test_stats_2[stage == 2]
+    
+    
+    plot_top <- ggplot(data = tmp,
+           mapping = aes(x = as.factor(surprise),
+                         y = outcome)) +
+        geom_bar(aes(fill = stage),
+                 position = "dodge", 
+                 stat = "summary", 
+                 fun = "mean") + 
+      limits +
+      scale_fill_manual(values=c("black", "gray")) +
+      theme_classic() +
+      stat_pvalue_manual(data = test_stats_2,
+                         label = "{p} ({p.adj.signif})", 
+                         step.group.by = "stage",
+                         tip.length = 0, 
+                         step.increase = 0.1, 
+                         y.position = y_1) +
+      stat_pvalue_manual(data = test_stats_1,
+                         label = "{p} ({p.adj.signif})",
+                         y.position = y_2,
+                         tip.length = 0,
+                         x = "surprise") +
+      labs(title = "",
+           x = " Surprising Condition",
+           y = glue(" {response}"))
+    
+    rm(tmp)
+    
+    plot_top
+  }
+}
+```
+
 
 ## Figure OB.1
 

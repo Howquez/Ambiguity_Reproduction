@@ -34,10 +34,10 @@ raw       <- data.table::fread(file="../data/raw/all_apps_wide_2021-09-15.csv")
 
 ## Table B.1
 
-```{r tbl-B.1}
+```{r}
 #| results: asis
-#| label: tbl-B.1
-#| tbl-cap: "Linear regressions: Treatment effects on E1"
+#| label: tbl-B-1
+#| tbl-cap: " "
 
 ols_1 <- lm(formula = E1 ~ surprise + treated + surprise * treated,
               data = data)
@@ -96,21 +96,22 @@ ols_1 <- lm(formula = E1 ~ surprise + treated + surprise * treated,
             se = se, 
             p = p,   
             title = "Linear regressions: Treatment effects on E1",
+            dep.var.caption = "Dependent variable: E1",
+            dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE,
-            style = "qje")
+            df = FALSE)
 ```
 
 ## Table B.2
 
-```{r tbl-B.2}
+```{r}
 #| results: asis
-#| label: tbl-B.2
-#| tbl-cap: "Linear regressions: Treatment effects on E2"
+#| label: tbl-B-2
+#| tbl-cap: " "
 
 ols_1 <- lm(formula = E2 ~ surprise + treated + surprise * treated,
               data = data)
@@ -169,21 +170,22 @@ ols_1 <- lm(formula = E2 ~ surprise + treated + surprise * treated,
             se = se, 
             p = p,   
             title = "Linear regressions: Treatment effects on E2",
+            dep.var.caption = "Dependent variable: E2",
+            dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE,
-            style = "qje")
+            df = FALSE)
 ```
 
 ## Table B.3
 
-```{r tbl-B.3}
+```{r}
 #| results: asis
-#| label: tbl-B.3
-#| tbl-cap: "Linear regressions: Treatment effects on E3"
+#| label: tbl-B-3
+#| tbl-cap: " "
 
 ols_1 <- lm(formula = E3 ~ surprise + treated + surprise * treated,
               data = data)
@@ -242,21 +244,22 @@ ols_1 <- lm(formula = E3 ~ surprise + treated + surprise * treated,
             se = se, 
             p = p,   
             title = "Linear regressions: Treatment effects on E3",
+            dep.var.caption = "Dependent variable: E3",
+            dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE,
-            style = "qje")
+            df = FALSE)
 ```
 
 ## Table B.4
 
-```{r tbl-B.4}
+```{r}
 #| results: asis
-#| label: tbl-B.4
-#| tbl-cap: "Linear regressions: Treatment effects on E12"
+#| label: tbl-B-4
+#| tbl-cap: " "
 
 ols_1 <- lm(formula = E12 ~ surprise + treated + surprise * treated,
               data = data)
@@ -315,21 +318,22 @@ ols_1 <- lm(formula = E12 ~ surprise + treated + surprise * treated,
             se = se, 
             p = p,   
             title = "Linear regressions: Treatment effects on E12",
+            dep.var.caption = "Dependent variable: E12",
+            dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE,
-            style = "qje")
+            df = FALSE)
 ```
 
 ## Table B.5
 
-```{r tbl-B.5}
+```{r}
 #| results: asis
-#| label: tbl-B.5
-#| tbl-cap: "Linear regressions: Treatment effects on E13"
+#| label: tbl-B-5
+#| tbl-cap: " "
 
 ols_1 <- lm(formula = E13 ~ surprise + treated + surprise * treated,
               data = data)
@@ -388,21 +392,22 @@ ols_1 <- lm(formula = E13 ~ surprise + treated + surprise * treated,
             se = se, 
             p = p,   
             title = "Linear regressions: Treatment effects on E13",
+            dep.var.caption = "Dependent variable: E13",
+            dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE,
-            style = "qje")
+            df = FALSE)
 ```
 
 ## Table B.6
 
-```{r tbl-B.6}
+```{r}
 #| results: asis
-#| label: tbl-B.6
-#| tbl-cap: "Linear regressions: Treatment effects on E23"
+#| label: tbl-B-6
+#| tbl-cap: " "
 
 ols_1 <- lm(formula = E23 ~ surprise + treated + surprise * treated,
               data = data)
@@ -461,13 +466,14 @@ ols_1 <- lm(formula = E23 ~ surprise + treated + surprise * treated,
             se = se, 
             p = p,   
             title = "Linear regressions: Treatment effects on E23",
+            dep.var.caption = "Dependent variable: E23",
+            dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE,
-            style = "qje")
+            df = FALSE)
 ```
 
 

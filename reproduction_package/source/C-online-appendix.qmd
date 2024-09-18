@@ -33,14 +33,6 @@ data <- readRDS(file="../data/processed/full.Rda")
 
 ### Manipulate Data
 
-`[Shall we add this code chunk to the pre-processing?]`
-
-```{r factorize}
-data[, communication := as.factor(communication)]
-data[, communication := factor(communication, levels = c("point", "both","interval"))]
-data[, stage := as.factor(stage)]
-data[, stage := factor(stage, levels = c("1", "2"))]
-```
 
 ```{r probabilites}
 cols <- str_subset(string = names(data), pattern = "E\\d+")
