@@ -149,6 +149,10 @@ We now change the data class of `communication` and make it a factor.
 ```{r factorize}
 event_data[, communication := as.factor(communication)]
 event_data[, communication := factor(communication, levels = c("point", "interval", "both"))]
+
+event_data[, stage := as.factor(stage)]
+event_data[, stage := factor(stage, 
+                             levels = c("1", "2"))]
 ```
 
 Finally, we create the indices we are interested in (mainly `b` and `a`) as well as the Euclidyan distance (`ed`) between matching probabilities prior to and after treatment.
@@ -356,17 +360,6 @@ full_processed <- merge_2[self_report_selection,
 
 ```{r display_full_data}
 full_processed %>% head(n = 7) %>% kable()
-```
-
-## Create Treatment Factors
-
-```{r factorize}
-full_processed[, communication := as.factor(communication)]
-full_processed[, communication := factor(communication, 
-                                         levels = c("point", "both","interval"))]
-full_processed[, stage := as.factor(stage)]
-full_processed[, stage := factor(stage, 
-                                 levels = c("1", "2"))]
 ```
 
 ## Save Data
