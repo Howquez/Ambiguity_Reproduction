@@ -134,7 +134,7 @@ plot_bars <- function(response = "p", surprise_sub = NA, limits = ylim(-0.05, 1.
   
   if(!is.na(surprise_sub)){
     # Plot bottom panels
-    tmp <- data[surprise == surprise_sub]
+    tmp <- subset[surprise == surprise_sub]
     names(tmp)[names(tmp) == response] <- 'outcome'
     
     if(surprise_sub){
@@ -194,7 +194,7 @@ plot_bars <- function(response = "p", surprise_sub = NA, limits = ylim(-0.05, 1.
     plot_bottom
   } else {
     # Plot the top panel
-    tmp <- data
+    tmp <- subset
     names(tmp)[names(tmp) == response] <- 'outcome'
     
     title <- "Both Conditions"
