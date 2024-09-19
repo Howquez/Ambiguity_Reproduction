@@ -426,3 +426,9 @@ bot3 <- plot_scatter_with_defaults(DT = wide_data[surprise == TRUE & communicati
 ((top1|top2) / (mid1 | mid2 | mid3) / (bot1 | bot2 | bot3) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
 
 ```
+
+## Session Info {-}
+
+```{r}
+sessionInfo()
+```

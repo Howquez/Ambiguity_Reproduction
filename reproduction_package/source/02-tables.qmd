@@ -36,33 +36,11 @@ data <- readRDS(file="../data/processed/full.Rda")
 
 ## Table 2
 
-This table was created in a manual process, the corresponding summary statistics can be queried using the following code, where `surprise == FALSE` selects the `confirmation` treatment arm:
-
-```{r}
-data[communication == "point" & surprise == FALSE,      # choose condition
-     .(mean = round(mean(b, na.rm = TRUE), digits = 2), # choose variable
-       sd = round(sd(b, na.rm = TRUE), digits = 2)),    # choose variable
-     by = stage] %>% 
-  kable()
-```
-
-The number of observations by treatment can be queried using the following code:
-
-```{r}
-data[, 
-     .(N = length(unique(participant.label))), 
-     by = c("communication", "surprise")][order(surprise, communication)] %>%
-  kable()
-# alternatively:
-# data[stage == 2, 
-#      .N, 
-#      by = c("communication", "surprise")][order(surprise, communication)]
-```
 
 ```{r}
 # Melt the data
 long_df <- melt(data,
-                id.vars = c("stage", "surprise", "communication"),
+                id.vars = c("stage", "surprise", "communication", "participant.label"),
                 measure.vars = c("b", "a", "E1", "E2", "E3", "E12", "E13", "E23"),
                 variable.name = "Variable",
                 value.name = "Value")
@@ -113,6 +91,33 @@ summary_table_final <- summary_table_wide[, .(Variable, stage, Pooled,
                                               Confirmation_point, Confirmation_both, Confirmation_interval,
                                               Contradiction_point, Contradiction_both, Contradiction_interval)]
 
+# Calculate N for each group correctly
+N_values <- data[, 
+                 .(N = length(unique(participant.label))), 
+                 by = c("communication", "surprise")]
+
+# Reshape N_values to wide format
+N_values_wide <- dcast(N_values, . ~ surprise + communication, value.var = "N")
+
+# Calculate pooled N
+N_pooled <- data[, length(unique(participant.label))]
+
+# Create N row
+N_row <- data.table(
+  Variable = "Participants",
+  stage = "",
+  Pooled = as.character(N_pooled),
+  Confirmation_point = as.character(N_values_wide$`FALSE_point`),
+  Confirmation_both = as.character(N_values_wide$`FALSE_both`),
+  Confirmation_interval = as.character(N_values_wide$`FALSE_interval`),
+  Contradiction_point = as.character(N_values_wide$`TRUE_point`),
+  Contradiction_both = as.character(N_values_wide$`TRUE_both`),
+  Contradiction_interval = as.character(N_values_wide$`TRUE_interval`)
+)
+
+# Add N row to summary_table_final
+summary_table_final <- rbindlist(list(summary_table_final, N_row), use.names = TRUE, fill = TRUE)
+
 # Create gt table
 summary_table_final %>% 
   gt(groupname_col = "Variable") %>% 
@@ -147,8 +152,14 @@ summary_table_final %>%
   tab_options(
     table.font.size = px(12),
     data_row.padding = px(4)
+  ) %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = everything(),
+      rows = Variable == "N"
+    )
   )
-
 ```
 
 
@@ -238,7 +249,8 @@ stargazer(ols_3_1, ols_3_2, ols_3_3, ols_3_4,
           font.size = "scriptsize",
           type = "html", 
           df = FALSE,
-          style = "qje")
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 ```
 
 ## Table 4
@@ -307,10 +319,12 @@ stargazer(ols_4_1, ols_4_2, ols_4_3, ols_4_4, ols_4_5, ols_4_6,
           dep.var.labels = " ",
           model.names = FALSE,
           column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
+          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
           font.size = "scriptsize",
           type = "html", 
-          df = FALSE)
+          df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 
 ```
 
@@ -380,10 +394,12 @@ stargazer(ols_5_1, ols_5_2, ols_5_3, ols_5_4, ols_5_5, ols_5_6,
           dep.var.labels = " ",
           model.names = FALSE,
           column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
+          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
           font.size = "scriptsize",
           type = "html", 
-          df = FALSE)
+          df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 
 ```
 
@@ -439,131 +455,14 @@ stargazer(ols_6_1, ols_6_2, ols_6_3, ols_6_4, ols_6_5, ols_6_6,
           covariate.labels = c("contradiction", "both", "interval", "Constant"),
           font.size = "scriptsize",
           type = "html", 
-          df = FALSE)
+          df = FALSE,
+          notes = c("Heteroscedasticity consistent standard errors (“HC1”, in parentheses) in parentheses and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 
 ```
 
-<!--
-# Appendix B
+## Session Info {-}
 
-```{r wrapper_function}
-#| eval: false
-event_regressions <- function(event = "E1"){
-  ols_1 <- lm(formula = reformulate(c("surprise", "treated", "surprise*treated"), response = event),
-              data = data)
-  se_1  <- coeftest(x = ols_1, 
-                    vcov = vcovCL(ols_1,
-                                  cluster = ~data$participant.label,
-                                  type = "HC1"))
-  
-  ols_2 <- lm(formula = reformulate(c("communication", "treated", "communication*treated"), response = event), 
-              data = data,
-              subset = (surprise == FALSE))
-  se_2  <- coeftest(x = ols_2, 
-                    vcov = vcovCL(ols_2,
-                                  cluster = data[surprise == FALSE, participant.label],
-                                  type = "HC1"))
-  
-  ols_3 <- lm(formula = reformulate(c("communication", "treated", "communication*treated"), response = event), 
-              data = data,
-              subset = (surprise == TRUE))
-  se_3  <- coeftest(x = ols_3, 
-                    vcov = vcovCL(ols_3,
-                                  cluster = data[surprise == TRUE, participant.label],
-                                  type = "HC1"))
-  
-  ols_4 <- lm(formula = reformulate(c("surprise", "treated", "surprise*treated"), response = event), 
-              data = data,
-              subset = (communication == "point"))
-  se_4  <- coeftest(x = ols_4, 
-                    vcov = vcovCL(ols_4,
-                                  cluster = data[communication == "point", participant.label],
-                                  type = "HC1"))
-  
-  ols_5 <- lm(formula = reformulate(c("surprise", "treated", "surprise*treated"), response = event), 
-              data = data,
-              subset = (communication == "interval"))
-  se_5  <- coeftest(x = ols_5, 
-                    vcov = vcovCL(ols_5,
-                                  cluster = data[communication == "interval", participant.label],
-                                  type = "HC1"))
-  
-  ols_6 <- lm(formula = reformulate(c("surprise", "treated", "surprise*treated"), response = event), 
-              data = data,
-              subset = (communication == "both"))
-  se_6  <- coeftest(x = ols_6, 
-                    vcov = vcovCL(ols_6,
-                                  cluster = data[communication == "both", participant.label],
-                                  type = "HC1"))
-
-
-  
-  se <- list(se_1[,2], se_2[,2], se_3[,2], se_4[,2], se_5[,2], se_6[,2])
-  p  <- list(se_1[,4], se_2[,4], se_3[,4], se_4[,4], se_5[,4], se_6[,4])
-  
-  stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6, 
-            align = TRUE, 
-            se = se, 
-            p = p,   
-            title = paste0("Linear regressions: Treatment effects on ", event),
-            font.size = "scriptsize",
-            type = "html", 
-            df = FALSE)
-}
+```{r}
+sessionInfo()
 ```
-
-
-## E1
-
-```{r E1}
-#| eval: false
-#| results: asis
-event_regressions(event = "E1")
-```
-
-
-## E2
-
-```{r E2}
-#| eval: false
-#| results: asis
-event_regressions(event = "E2")
-```
-
-
-## E3
-
-```{r E3}
-#| eval: false
-#| results: asis
-event_regressions(event = "E3")
-```
-
-
-## E12
-
-```{r E12}
-#| eval: false
-#| results: asis
-event_regressions(event = "E12")
-```
-
-
-## E13
-
-```{r E13}
-#| eval: false
-#| results: asis
-event_regressions(event = "E13")
-```
-
-
-## E23
-
-```{r E23}
-#| eval: false
-#| results: asis
-event_regressions(event = "E23")
-```
-
--->

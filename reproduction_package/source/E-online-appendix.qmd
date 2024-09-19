@@ -166,7 +166,7 @@ plot_bars2 <- function(data, response = "p", surprise_sub = NA, limits = ylim(-0
                          tip.length = 0,
                          x = "communication") +
       labs(title = "",
-           x = " Surprising Condition",
+           x = title,
            y = glue(" {response}"))
     
     rm(tmp)
@@ -223,7 +223,7 @@ plot_bars2 <- function(data, response = "p", surprise_sub = NA, limits = ylim(-0
                          tip.length = 0,
                          x = "surprise") +
       labs(title = "",
-           x = " Surprising Condition",
+           x = "Surprising Condition?",
            y = glue(" {response}"))
     
     rm(tmp)
@@ -365,10 +365,12 @@ ols_1 <- lm(formula = p1 ~ surprise + treated + surprise * treated,
             dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE)
+            df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 ```
 
 
@@ -440,10 +442,12 @@ ols_1 <- lm(formula = p2 ~ surprise + treated + surprise * treated,
             dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE)
+            df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 ```
 
 
@@ -515,10 +519,12 @@ ols_1 <- lm(formula = p3 ~ surprise + treated + surprise * treated,
             dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE)
+            df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 ```
 
 
@@ -572,10 +578,12 @@ stargazer(ols_6_1, ols_6_2, ols_6_3, ols_6_4, ols_6_5, ols_6_6,
             dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE)
+            df = FALSE,
+          notes = c("Heteroscedasticity consistent standard errors (“HC1”, in parentheses) in parentheses and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 
 ```
 
@@ -756,6 +764,14 @@ As before, we use the `{{patchwork}}` package to assmeble the plot objects.
 
 Note that the order of both, the y-axis as well as the control variables is different compared to the Figure in the manuscript.
 
-## References
+## Session Info {-}
+
+```{r}
+sessionInfo()
+```
+
+
+
+## References {-}
 
 

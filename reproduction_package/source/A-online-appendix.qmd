@@ -169,3 +169,8 @@ ggplot(raw[participant._index_in_pages > 8 & nchar(participant.label) == 32 & se
   labs(x = "Treatments", y = "Count") 
 ```
 
+## Session Info {-}
+
+```{r}
+sessionInfo()
+```

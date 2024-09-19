@@ -73,7 +73,7 @@ book:
         - C-online-appendix.qmd
         - D-online-appendix.qmd
         - E-online-appendix.qmd
-    - X-references.qmd
+    # - X-references.qmd
   appendices:
     - X-session-info.qmd
     

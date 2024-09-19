@@ -26,7 +26,7 @@ rm(pkgs)
 ### Read Data
 
 ```{r read_data}
-data      <- readRDS(file="../data/processed/full.Rda")
+data <- readRDS(file="../data/processed/full.Rda")
 ```
 
 ### Design
@@ -51,11 +51,12 @@ layout <- theme(panel.background = element_rect(fill = "white"),
 
 ```
 
+## Figure D.1
 
-## Figure a
+### Panel  a
 
 ```{r}
-#| label: fig-Da
+#| label: fig-D1a
 #| fig-cap: "Credibility, confirmation compared to contradiction"
 wilcox_test <- wilcox.test(formula = credibility ~ surprise, 
                            data = data[treated == 1])
@@ -82,10 +83,10 @@ ggplot(data = data[treated == 1],
   layout
 ```
 
-## Figure c
+### Panel  c
 
 ```{r}
-#| label: fig-Dc
+#| label: fig-D1c
 #| fig-cap: "Credibility, confirmation treatments"
 comparisons <- list(c("point", "interval"), 
                     c("point", "both"), 
@@ -121,10 +122,10 @@ ggplot(data = data[treated == 1 & surprise == FALSE],
   layout
 ```
 
-## Figure e
+### Panel  e
 
 ```{r}
-#| label: fig-De
+#| label: fig-D1e
 #| fig-cap: "Credibility, contradiction treatments"
 comparisons <- list(c("point", "interval"), 
                     c("point", "both"), 
@@ -160,10 +161,10 @@ ggplot(data = data[treated == 1 & surprise == TRUE],
   layout
 ```
 
-## Figure b
+### Panel  b
 
 ```{r}
-#| label: fig-Db
+#| label: fig-D1b
 #| fig-cap: "Credibility, confirmation compared to contradiction (density)"
 ggplot(data = data[treated == 1],
        mapping = aes(x = credibility, fill = surprise)) +
@@ -179,10 +180,10 @@ ggplot(data = data[treated == 1],
   layout
 ```
 
-## Figure d
+### Panel  d
 
 ```{r}
-#| label: fig-Dd
+#| label: fig-D1d
 #| fig-cap: "Credibility, confirmation treatments (density)"
 ggplot(data = data[treated == 1 & surprise == FALSE],
        mapping = aes(x = credibility, fill = communication)) +
@@ -198,11 +199,10 @@ ggplot(data = data[treated == 1 & surprise == FALSE],
   layout
 ```
 
-
-## Figure f
+### Panel  f
 
 ```{r}
-#| label: fig-Df
+#| label: fig-D1f
 #| fig-cap: "Credibility, contradiction treatments"
 ggplot(data = data[treated == 1 & surprise == TRUE],
        mapping = aes(x = credibility, fill = communication)) +
@@ -216,4 +216,180 @@ ggplot(data = data[treated == 1 & surprise == TRUE],
   labs(x = "Credibility",
        y = "Density") +
   layout
+```
+
+
+## Figure D.2
+
+### Panel  a
+
+```{r}
+#| label: fig-D2a
+#| fig-cap: "Accuracy, confirmation compared to contradiction"
+wilcox_test <- wilcox.test(formula = accuracy ~ surprise, 
+                           data = data[treated == 1])
+
+p_value <- wilcox_test$p.value
+p_value_text <- ifelse(p_value < 0.01, "***", ifelse(p_value < 0.05, "**", ifelse(p_value < 0.10, "*", "ns")))
+formatted_p_value <- format(x = p_value, digits = 3, scientific = TRUE)
+
+ggplot(data = data[treated == 1],
+       mapping = aes(y = accuracy,
+                     x = surprise)) +
+  geom_bar(stat = "summary", 
+           fun = mean,
+           fill = colors[2]) +
+  scale_y_continuous(limits = c(0, 4),
+                     expand = c(0, NA)) +
+  geom_signif(comparisons = list(c("FALSE", "TRUE")),
+              annotations = paste0(formatted_p_value, " (", p_value_text, ")"),
+              y_position = 3.5,
+              tip_length = 0,
+              size = 0.5) +
+  labs(x = "Contradiction",
+       y = "Accuracy") +
+  layout
+```
+
+### Panel  c
+
+```{r}
+#| label: fig-D2c
+#| fig-cap: "Accuracy, confirmation treatments"
+comparisons <- list(c("point", "interval"), 
+                    c("point", "both"), 
+                    c("interval", "both"))
+
+p_values <- sapply(comparisons, function(comp) {
+  test <- wilcox.test(formula = accuracy ~ communication, 
+                      data = data[treated == 1 & surprise == FALSE & communication %in% comp])
+  test$p.value
+})
+
+p_values_text <- sapply(p_values, function(p) {
+  ifelse(p < 0.01, "***", ifelse(p < 0.05, "**", ifelse(p < 0.10, "*", "ns")))
+})
+
+formatted_p_values <- format(x = p_values, digits = 3, scientific = TRUE)
+
+ggplot(data = data[treated == 1 & surprise == FALSE],
+       mapping = aes(y = accuracy,
+                     x = communication)) +
+  geom_bar(stat = "summary", 
+           fun = mean,
+           fill = colors[2]) +
+  scale_y_continuous(limits = c(0, 4),
+                     expand = c(0, NA)) +
+  geom_signif(comparisons = comparisons,
+              annotations = paste0(formatted_p_values, " (", p_values_text, ")"),
+              y_position = c(3.0, 3.3, 3.6),
+              tip_length = 0,
+              size = 0.5) +
+  labs(x = "Communication",
+       y = "Accuracy") +
+  layout
+```
+
+### Panel  e
+
+```{r}
+#| label: fig-D2e
+#| fig-cap: "Accuracy, contradiction treatments"
+comparisons <- list(c("point", "interval"), 
+                    c("point", "both"), 
+                    c("interval", "both"))
+
+p_values <- sapply(comparisons, function(comp) {
+  test <- wilcox.test(formula = accuracy ~ communication, 
+                      data = data[treated == 1 & surprise == TRUE & communication %in% comp])
+  test$p.value
+})
+
+p_values_text <- sapply(p_values, function(p) {
+  ifelse(p < 0.01, "***", ifelse(p < 0.05, "**", ifelse(p < 0.10, "*", "ns")))
+})
+
+formatted_p_values <- format(x = p_values, digits = 3, scientific = TRUE)
+
+ggplot(data = data[treated == 1 & surprise == TRUE],
+       mapping = aes(y = accuracy,
+                     x = communication)) +
+  geom_bar(stat = "summary", 
+           fun = mean,
+           fill = colors[2]) +
+  scale_y_continuous(limits = c(0, 4),
+                     expand = c(0, NA)) +
+  geom_signif(comparisons = comparisons,
+              annotations = paste0(formatted_p_values, " (", p_values_text, ")"),
+              y_position = c(3.0, 3.3, 3.6),
+              tip_length = 0,
+              size = 0.5) +
+  labs(x = "Communication",
+       y = "Accuracy") +
+  layout
+```
+
+### Panel  b
+
+```{r}
+#| label: fig-D2b
+#| fig-cap: "Accuracy, confirmation compared to contradiction (density)"
+ggplot(data = data[treated == 1],
+       mapping = aes(x = accuracy, fill = surprise)) +
+  geom_histogram(aes(y = after_stat(density)), 
+                 alpha = 0.66,
+                 position = "identity", 
+                 binwidth = 1, 
+                 color = "black") +
+  scale_y_continuous(limits = c(0, 0.5),
+                     expand = c(0, NA)) +
+  labs(x = "Accuracy",
+       y = "Density") +
+  layout
+```
+
+### Panel  d
+
+```{r}
+#| label: fig-D2d
+#| fig-cap: "Accuracy, confirmation treatments (density)"
+ggplot(data = data[treated == 1 & surprise == FALSE],
+       mapping = aes(x = accuracy, fill = communication)) +
+  geom_histogram(aes(y = after_stat(density)), 
+                 alpha = 0.66,
+                 position = "identity", 
+                 binwidth = 1, 
+                 color = "black") +
+  scale_y_continuous(limits = c(0, 0.5),
+                     expand = c(0, NA)) +
+  labs(x = "Accuracy",
+       y = "Density") +
+  layout
+```
+
+
+### Panel  f
+
+```{r}
+#| label: fig-D2f
+#| fig-cap: "Accuracy, contradiction treatments"
+ggplot(data = data[treated == 1 & surprise == TRUE],
+       mapping = aes(x = accuracy, fill = communication)) +
+  geom_histogram(aes(y = after_stat(density)), 
+                 alpha = 0.66,
+                 position = "identity", 
+                 binwidth = 1, 
+                 color = "black") +
+  scale_y_continuous(limits = c(0, 0.5),
+                     expand = c(0, NA)) +
+  labs(x = "Accuracy",
+       y = "Density") +
+  layout
+```
+
+
+## Session Info {-}
+
+```{r}
+sessionInfo()
 ```

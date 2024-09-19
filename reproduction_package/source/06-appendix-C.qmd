@@ -70,3 +70,9 @@ In `figure C.1a`, we pool across the different information treatments (interval,
 
 In `figure C.1b and C.1c`, we test the heterogeneous effects of the different information treatments (interval, best guess, both) separately for confirmation and contradiction treatment arms. The best guess information treatment serves as the baseline and _treat_ refers to the information treatments interval or both.
 
+
+## Session Info {-}
+
+```{r}
+sessionInfo()
+```

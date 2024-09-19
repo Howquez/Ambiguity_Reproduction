@@ -422,3 +422,9 @@ right <- plot_bars(response = "E23", surprise_sub = TRUE)
 
 (top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
 ```
+
+## Session Info {-}
+
+```{r}
+sessionInfo()
+```

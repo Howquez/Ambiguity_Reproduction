@@ -1,8 +1,23 @@
 # Preface {.unnumbered}
 
-This document explains and shows how to reproduce the figures and tables presented in our paper using a literate programming approach [@Knuth_1984].
+This document provides a step-by-step guide to reproducing the figures and tables presented in @MinnichEtAl_2023, using a literate programming approach [@Knuth_1984]. By combining some narrative explanations with code and its output, we aim to increase our analyses' transparency and reproducibility, allowing other researchers to validate, modify, and extend our findings. Whereas the reproduction captures the substance of all results, minor discrepancies in the style of some tables and figures may arise due to post-processing in LaTeX and the fact that this document generates HTML output rather than PDF. These differences do not affect the accuracy or interpretation of the findings.
 
-```{r}
-sessionInfo()
+Beneath each script, we print its session information, which provides a record of the R environment, including package versions and system details.^[Whenever we report clustered standard errors, we calculated them using the `{sandwich}` packages by @Zeileis_2004 and @ZeileisEtAl_2020.] This ensures that others can replicate the analysis under the same conditions, reducing the risk of discrepancies due to software version differences. In addition, we use `{groundhog}` as a package versioning tool to maintain consistent and reproducible package versions.
+
+The following is the BibTeX entry for the key reference, which can be used to cite our paper in future research or to replicate the results:
+
+```bibtex
+@article{MinnichEtAl_2023,
+  title = {Ambiguity Attitudes and Surprises: Experimental Evidence on Communicating New Information within a Large Population Sample},
+  author = {Minnich, Aljoscha and Roggenkamp, Hauke and Lange, Andreas},
+  year = {2023},
+  type = {CESifo Working Paper},
+  number = {10783},
+  institution = {CESifo},
+  doi = {10.2139/ssrn.4646369},
+  url = {https://ssrn.com/abstract=4646369}
+}
 ```
 
+
+## References {-}

@@ -279,3 +279,8 @@ gt_table <- comprehension_wide %>%
 gt_table
 ```
 
+## Session Info {-}
+
+```{r}
+sessionInfo()
+```

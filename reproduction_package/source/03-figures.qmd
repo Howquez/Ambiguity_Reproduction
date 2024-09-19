@@ -33,12 +33,6 @@ rm(pkgs)
 data <- readRDS(file="../data/processed/full.Rda")
 ```
 
-```{r factorize}
-data[, communication := as.factor(communication)]
-data[, communication := factor(communication, levels = c("point", "interval", "both"))]
-data[, stage := as.factor(stage)]
-data[, stage := factor(stage, levels = c("1", "2"))]
-```
 
 ## Figure 1
 
@@ -453,6 +447,11 @@ for(RHS in c("none", "demographics", "all")){
     tmp[, center := (`2.5 %` + `97.5 %`)/2]
     
     ci_top <- rbind(ci_top, tmp)
+    
+    
+    ci_top[, outcome := as.factor(outcome)]
+    ci_top[, outcome := factor(outcome, 
+                               levels = rev(c("E1", "E2", "E3", "E12", "E13", "E23")))]
   }
 }
 ```
@@ -609,3 +608,8 @@ right <- ggplot(data = ci_right,
 (top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
 ```
 
+## Session Info {-}
+
+```{r}
+sessionInfo()
+```

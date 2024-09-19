@@ -100,10 +100,12 @@ ols_1 <- lm(formula = E1 ~ surprise + treated + surprise * treated,
             dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE)
+            df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 ```
 
 ## Table B.2
@@ -174,10 +176,12 @@ ols_1 <- lm(formula = E2 ~ surprise + treated + surprise * treated,
             dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE)
+            df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 ```
 
 ## Table B.3
@@ -248,10 +252,12 @@ ols_1 <- lm(formula = E3 ~ surprise + treated + surprise * treated,
             dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE)
+            df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 ```
 
 ## Table B.4
@@ -322,10 +328,12 @@ ols_1 <- lm(formula = E12 ~ surprise + treated + surprise * treated,
             dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE)
+            df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 ```
 
 ## Table B.5
@@ -396,10 +404,12 @@ ols_1 <- lm(formula = E13 ~ surprise + treated + surprise * treated,
             dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE)
+            df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 ```
 
 ## Table B.6
@@ -470,10 +480,17 @@ ols_1 <- lm(formula = E23 ~ surprise + treated + surprise * treated,
             dep.var.labels = " ",
             model.names = FALSE,
             column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "interval x stage 2", "both x stage 2", "Constant"),
+            covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
             font.size = "scriptsize",
             type = "html", 
-            df = FALSE)
+            df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 ```
 
+## Session Info {-}
+
+```{r}
+sessionInfo()
+```
 

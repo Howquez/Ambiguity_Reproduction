@@ -144,7 +144,7 @@ event_data <- data.table::dcast(long,
 setorder(event_data, surprise, communication, participant.label)
 ```
 
-We now change the data class of `communication` and make it a factor.
+We now change the class of the treatment variables `communication` and `stage` to make it a factor.
 
 ```{r factorize}
 event_data[, communication := as.factor(communication)]
@@ -387,4 +387,8 @@ objects_to_remove <- setdiff(objects, objects_to_keep)
 rm(list = objects_to_remove)
 ```
 
-## References
+## Session Info {-}
+
+```{r}
+sessionInfo()
+```

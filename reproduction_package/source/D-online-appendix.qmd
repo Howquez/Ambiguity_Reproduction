@@ -130,7 +130,7 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           dep.var.labels = " ",
           model.names = FALSE,
           column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
           font.size = "scriptsize",
           type = "html", 
           df = FALSE)
@@ -202,11 +202,11 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           dep.var.labels = " ",
           model.names = FALSE,
           column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
           font.size = "scriptsize",
           type = "html", 
-          notes = c("The underlying standard errors (“HC1”) are clustered at the individual level and ",
-                    "estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level",
+                    "and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
           notes.align = "l",
           df = FALSE)
 
@@ -291,13 +291,12 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           dep.var.labels = " ",
           model.names = FALSE,
           column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
           font.size = "scriptsize",
           type = "html",
-          notes = c("The underlying standard errors (“HC1”) are clustered at the individual level and ",
-                    "estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
-          notes.align = "l",
-          df = FALSE)
+          df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 ```
 
 ```{r}
@@ -366,13 +365,12 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           dep.var.labels = " ",
           model.names = FALSE,
           column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
           font.size = "scriptsize",
-          type = "html", 
-          notes = c("The underlying standard errors (“HC1”) are clustered at the individual level and ",
-                    "estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
-          notes.align = "l",
-          df = FALSE)
+          type = "html",
+          df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 
 rm(tmp)
 ```
@@ -463,13 +461,12 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           dep.var.labels = " ",
           model.names = FALSE,
           column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
           font.size = "scriptsize",
-          type = "html", 
-          notes = c("The underlying standard errors (“HC1”) are clustered at the individual level and ",
-                    "estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
-          notes.align = "l",
-          df = FALSE)
+          type = "html",
+          df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 ```
 
 ```{r}
@@ -538,13 +535,12 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           dep.var.labels = " ",
           model.names = FALSE,
           column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
           font.size = "scriptsize",
-          type = "html", 
-          notes = c("The underlying standard errors (“HC1”) are clustered at the individual level and ",
-                    "estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
-          notes.align = "l",
-          df = FALSE)
+          type = "html",
+          df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 
 rm(tmp)
 ```
@@ -629,13 +625,12 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           dep.var.labels = " ",
           model.names = FALSE,
           column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
           font.size = "scriptsize",
-          type = "html", 
-          notes = c("The underlying standard errors (“HC1”) are clustered at the individual level and ",
-                    "estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
-          notes.align = "l",
-          df = FALSE)
+          type = "html",
+          df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 ```
 
 ```{r}
@@ -703,13 +698,12 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           dep.var.labels = " ",
           model.names = FALSE,
           column.labels = c("full", "confirmation", "contradiction", "point", "interval", "both"),
-          covariate.labels = c("contradiction", "both", "interval", "part2", "contradiction x stage 2", "interval x stage2", "both x stage2", "Constant"),
+          covariate.labels = c("contradiction", "both", "interval", "stage 2", "contradiction x stage 2", "both x stage 2", "interval x stage 2", "Constant"),
           font.size = "scriptsize",
-          type = "html", 
-          notes = c("The underlying standard errors (“HC1”) are clustered at the individual level and ",
-                    "estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
-          notes.align = "l",
-          df = FALSE)
+          type = "html",
+          df = FALSE,
+          notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
+          notes.align = "l")
 
 rm(tmp)
 ```
