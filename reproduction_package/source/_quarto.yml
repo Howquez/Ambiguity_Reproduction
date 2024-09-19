@@ -40,6 +40,7 @@ book:
         postal_code: 22043
   - name: Andreas Lange
     email: andreas.lange@uni-hamburg.de
+    orcid: 0000-0001-9518-5308
     corresponding: true
     affiliations:
       - name: Center for Earth System Research and Sustainability (CEN), University of Hamburg

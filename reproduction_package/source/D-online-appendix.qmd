@@ -53,22 +53,169 @@ layout <- theme(panel.background = element_rect(fill = "white"),
 
 ```
 
+## Helper Function
+
+To avoid repetition, we define a set of helper functions. The first set of function creates visualizations. The second function serves as a wrapper for these functions and assembles them into one combined plot.
+
+```{r level_1}
+# Function to create the top panel
+create_top_panel <- function(data, 
+                             events = FALSE, 
+                             interaction_term = "surpriseTRUE:treatedTRUE", 
+                             plot_title = "Effect of contradiction (relative to confirmation)") {
+  covariate_sets <- list(
+    none = c("surprise", "treated", "surprise*treated"),
+    demographics = c("surprise", "treated", "surprise*treated", 
+                     "age_35_52", "age_53_plus", "female", "high_education", 
+                     "high_income", "married", "parentship"),
+    all = c("surprise", "treated", "surprise*treated", 
+            "age_35_52", "age_53_plus", "female", "high_education", 
+            "high_income", "married", "parentship",
+            "high_temperature", "high_usage", "high_general_risk", 
+            "high_weather_risk", "high_accuracy", "high_credibility")
+  )
+  
+  if(events){
+    outcome_vars <- c("E1", "E2", "E3", "E12", "E13", "E23")
+  } else {
+    outcome_vars <- c("a", "b")
+  }
+  
+  ci_top <- data.frame()
+  
+  for (model_name in names(covariate_sets)) {
+    for (LHS in outcome_vars) {
+      formula <- reformulate(termlabels = covariate_sets[[model_name]], response = LHS)
+      ols <- lm(formula = formula, data = data)
+      
+      tmp <- coefci(x = ols,
+                    parm = interaction_term,
+                    vcov = vcovCL(x = ols, cluster = data$participant.label, type = "HC1"),
+                    level = 0.95) %>%
+        as.data.frame() %>%
+        mutate(model = model_name, outcome = LHS)
+      
+      tmp$center <- (tmp$`2.5 %` + tmp$`97.5 %`) / 2
+      ci_top <- rbind(ci_top, tmp)
+    }
+  }
+  
+  ggplot(data = ci_top, mapping = aes(y = outcome)) +
+    geom_pointrange(mapping = aes(x = center, y = outcome, xmin = `2.5 %`, xmax = `97.5 %`, shape = factor(model)),
+                    position = position_dodge(width = 0.4), fatten = 5, alpha = 0.8) +
+    geom_vline(xintercept = 0, color = "red", alpha = 0.66, show.legend = FALSE) +
+    theme_bw() +
+    labs(y = "Outcome Variable", x = "Estimate", shape = "Control variables", title = plot_title)
+}
+
+# function to create side panels (left and right)
+create_side_panel <- function(data, 
+                              events = FALSE,
+                              outcome_vars, 
+                              surprise_value, 
+                              panel_title) {
+  covariate_sets <- list(
+    none = c("communication", "treated", "communication*treated"),
+    demographics = c("communication", "treated", "communication*treated", 
+                     "age_35_52", "age_53_plus", "female", "high_education", 
+                     "high_income", "married", "parentship"),
+    all = c("communication", "treated", "communication*treated", 
+            "age_35_52", "age_53_plus", "female", "high_education", 
+            "high_income", "married", "parentship",
+            "high_temperature", "high_usage", "high_general_risk", 
+            "high_weather_risk", "high_accuracy", "high_credibility")
+  )
+  
+  if(events){
+    outcome_vars <- c("E1", "E2", "E3", "E12", "E13", "E23")
+  } else {
+    outcome_vars <- c("a", "b")
+  }
+  
+  ci_side <- data.frame()
+  
+  # Subset the data based on the surprise value
+  subset_data <- subset(data, surprise == surprise_value)
+  
+  for (model_name in names(covariate_sets)) {
+    for (LHS in outcome_vars) {
+      ols <- lm(formula = reformulate(termlabels = covariate_sets[[model_name]], response = LHS),
+                data = subset_data)
+      
+      for (communication in c("interval", "both")) {
+        tmp <- coefci(x = ols,
+                      parm = paste0("communication", communication, ":treatedTRUE"),
+                      vcov = vcovCL(x = ols, cluster = subset_data$participant.label, type = "HC1"),
+                      level = 0.95) %>%
+          as.data.frame() %>%
+          mutate(model = model_name, outcome = paste0(LHS, " (", communication, ")"))
+        
+        tmp$center <- (tmp$`2.5 %` + tmp$`97.5 %`) / 2
+        ci_side <- rbind(ci_side, tmp)
+      }
+    }
+  }
+  
+  ggplot(data = ci_side, mapping = aes(y = outcome)) +
+    geom_pointrange(mapping = aes(x = center, y = outcome, xmin = `2.5 %`, xmax = `97.5 %`, shape = factor(model)),
+                    position = position_dodge(width = 0.4), fatten = 5, alpha = 0.8) +
+    geom_vline(xintercept = 0, color = "red", alpha = 0.66, show.legend = FALSE) +
+    theme_bw() +
+    labs(title = panel_title, y = "Outcome Variable", x = "Estimate", shape = "Control variables")
+}
+
+# Function to assemble all panels (unchanged)
+assemble_panels <- function(top, left, right) {
+  library(patchwork)
+  (top / (left | right) & theme(legend.position = "bottom")) + plot_layout(guides = "collect")
+}
+```
+
+```{r level_2}
+wrapper <- function(show_events = FALSE,
+                    dt = tmp){
+  # Top panel
+  top_panel <- create_top_panel(data = dt,
+                                events = show_events,
+                                plot_title = "Effect of contradiction (relative to confirmation)")
+  
+  # Left panel
+  left_panel <- create_side_panel(data = dt,
+                                       events = show_events,
+                                       surprise_value = FALSE,
+                                       panel_title = "Confirmation Treatments")
+  
+  # Right panel
+  right_panel <- create_side_panel(data = dt,
+                                        events = show_events,
+                                        surprise_value = TRUE,
+                                        panel_title = "Contradiction Treatments")
+  
+  # Aseembly
+  plot <- assemble_panels(top_panel, left_panel, right_panel)
+  
+  plot
+}
+
+```
+
 
 ## Subsample 1: Good comprehension (yes or rather yes)
 
 ```{r comprehension_exclusion_1}
 ex_1_N <- data[stage == 1 & str_detect(string = comprehension, pattern = "yes", negate = TRUE), .N]
+
+tmp <- data[str_detect(string = comprehension, pattern = "yes", negate = FALSE)]
 ```
 
 We perceive the tasks as cognitively demanding for the experimental participants. Not understanding the tasks could have led to additional noise in the data set. To exclude this as a factor influencing our results, we excluded participants who self-reported not understanding the experiment well or rather well. In the process, we excluded `r ex_1_N` participants for this robustness check.
+
+### Table OD.1
 
 ```{r}
 #| results: asis
 #| label: tbl-OD1
 #| tbl-cap: " "
-
-tmp <- data[str_detect(string = comprehension, pattern = "yes", negate = FALSE)]
-
 ols_1 <- lm(formula = b ~ surprise + treated + surprise * treated,
             data = tmp)
 se_1  <- coeftest(x = ols_1, 
@@ -135,6 +282,8 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           type = "html", 
           df = FALSE)
 ```
+
+### Table OD.2
 
 ```{r}
 #| results: asis
@@ -210,25 +359,46 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           notes.align = "l",
           df = FALSE)
 
-rm(tmp)
+```
+
+### Figure OD.1
+
+```{r}
+#| label: fig-OD1
+#| fig-cap: "Treatment effects of regression equation (1) with dependent variables b and a (Subsample 1). Estimators with 95% confidence intervals. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)."
+#| 
+wrapper(show_events = FALSE, dt = tmp)
+```
+
+### Figure OD.2
+
+```{r}
+#| label: fig-OD2
+#| fig-cap: "Treatment effects of regression equation (1) with matching probabilities for all events as dependent variables (Subsample 1). Estimators with 95% confidence intervals. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)."
+#| 
+wrapper(show_events = TRUE, dt = tmp)
 ```
 
 
 ## Subsample 2: No wrong answers in the control questions
 
 ```{r comprehension_exclusion_2}
+rm(tmp)
+
 ex_2_N <- data[, length(unique(participant.label))] - data[wrong_answer_1==0 & wrong_answer_2==0, length(unique(participant.label))]
+
+tmp <- data[wrong_answer_1==0 & wrong_answer_2==0]
 ```
 
 Using a similar rationale as in subsample 1, we excluded participants who had at least one error
 in the control questions. In doing so, we removed `r ex_2_N` participants. Apart from the different exclusion criterion, the code producing the corresponding tables looks exactly the same.
 
+### Table OD.3
+
 ```{r}
 #| results: asis
 #| label: tbl-OD3
 #| tbl-cap: " "
-
-tmp <- data[wrong_answer_1==0 & wrong_answer_2==0]
 
 ols_1 <- lm(formula = b ~ surprise + treated + surprise * treated,
             data = tmp)
@@ -298,6 +468,8 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
           notes.align = "l")
 ```
+
+### Table OD.4
 
 ```{r}
 #| results: asis
@@ -372,13 +544,32 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
           notes.align = "l")
 
-rm(tmp)
 ```
 
+
+### Figure OD.3
+
+```{r}
+#| label: fig-OD3
+#| fig-cap: "Treatment effects of regression equation (1) with dependent variables b and a (Subsample 2). Estimators with 95% confidence intervals. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)."
+#| 
+wrapper(show_events = FALSE, dt = tmp)
+```
+
+### Figure OD.4
+
+```{r}
+#| label: fig-OD4
+#| fig-cap: "Treatment effects of regression equation (1) with matching probabilities for all events as dependent variables (Subsample 2). Estimators with 95% confidence intervals. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)."
+#| 
+wrapper(show_events = TRUE, dt = tmp)
+```
 
 ## Subsample 3: Survey experiment completion time 10%-90% quantile
 
 ```{r}
+rm(tmp)
+
 lo_quantile <- data[, quantile(x = completion_time, probs = 0.1)]
 hi_quantile <- data[, quantile(x = completion_time, probs = 0.9)]
 
@@ -386,6 +577,9 @@ lo_time <- seconds_to_period(lo_quantile)
 hi_time <- seconds_to_period(hi_quantile)
 
 ex_3_N <- data[, length(unique(participant.label))] - data[completion_time > lo_quantile & completion_time < hi_quantile, length(unique(participant.label))]
+
+tmp <- data[completion_time > lo_quantile & completion_time < hi_quantile]
+
 ```
 
 
@@ -393,12 +587,12 @@ We believe that excessively fast participants could introduce additional noise. 
 
 Apart from the different exclusion criterion, the code producing the corresponding tables looks exactly the same.
 
+### Table OD.5
+
 ```{r}
 #| results: asis
 #| label: tbl-OD5
 #| tbl-cap: " "
-
-tmp <- data[completion_time > lo_quantile & completion_time < hi_quantile]
 
 ols_1 <- lm(formula = b ~ surprise + treated + surprise * treated,
             data = tmp)
@@ -468,6 +662,8 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
           notes.align = "l")
 ```
+
+### Table OD.6
 
 ```{r}
 #| results: asis
@@ -542,14 +738,34 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
           notes.align = "l")
 
-rm(tmp)
 ```
 
+### Figure OD.5
+
+```{r}
+#| label: fig-OD5
+#| fig-cap: "Treatment effects of regression equation (1) with dependent variables b and a (Subsample 3). Estimators with 95% confidence intervals. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)."
+#| 
+wrapper(show_events = FALSE, dt = tmp)
+```
+
+### Figure OD.6
+
+```{r}
+#| label: fig-OD6
+#| fig-cap: "Treatment effects of regression equation (1) with matching probabilities for all events as dependent variables (Subsample 3). Estimators with 95% confidence intervals. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)."
+#| 
+wrapper(show_events = TRUE, dt = tmp)
+```
 
 ## Subsample 4: Weakly monotonic answers $(\overline{m_s}\leq\overline{m_c})$
 
-```{r}
+```{r ignore_violators}
+rm(tmp)
+
 violators <- data[mc < ms, unique(participant.label)]
+
+tmp <- data[!(participant.label %in% violators)]
 ```
 
 In this subsample, we removed participants who violated weak monotonicity for the averaged
@@ -557,12 +773,12 @@ single vs. combined events ($\overline{m_s}\leq\overline{m_c}$) at least once (e
 
 Apart from the different exclusion criterion, the code producing the corresponding tables looks exactly the same.
 
+### Table OD.7
+
 ```{r}
 #| results: asis
 #| label: tbl-OD7
 #| tbl-cap: " "
-
-tmp <- data[!(participant.label %in% violators)]
 
 ols_1 <- lm(formula = b ~ surprise + treated + surprise * treated,
             data = tmp)
@@ -632,6 +848,9 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
           notes.align = "l")
 ```
+
+
+### Table OD.8
 
 ```{r}
 #| results: asis
@@ -705,5 +924,32 @@ stargazer(ols_1, ols_2, ols_3, ols_4, ols_5, ols_6,
           notes = c("The underlying standard errors (“HC1”, in parentheses) are clustered at the individual level and estimated with the R package sandwich (Zeileis 2004; Zeileis et al. 2020)"),
           notes.align = "l")
 
-rm(tmp)
 ```
+
+### Figure OD.7
+
+```{r}
+#| label: fig-OD7
+#| fig-cap: "Treatment effects of regression equation (1) with dependent variables b and a (Subsample 4). Estimators with 95% confidence intervals. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)."
+#| 
+wrapper(show_events = FALSE, dt = tmp)
+```
+
+### Figure OD.8
+
+```{r}
+#| label: fig-OD8
+#| fig-cap: "Treatment effects of regression equation (1) with matching probabilities for all events as dependent variables (Subsample 4). Estimators with 95% confidence intervals. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)."
+#| 
+wrapper(show_events = TRUE, dt = tmp)
+```
+
+## Session Info {-}
+
+```{r}
+sessionInfo()
+```
+
+
+
+## References {-}

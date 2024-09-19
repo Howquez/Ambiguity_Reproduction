@@ -15,7 +15,7 @@ if (!requireNamespace("groundhog", quietly = TRUE)) {
     install.packages("groundhog")
 }
 
-pkgs <- c("magrittr", "data.table", "stringr", "Rmisc", "ggplot2")
+pkgs <- c("magrittr", "data.table", "stringr", "Rmisc", "ggplot2", "lmtest", "sandwich", "glue", "knitr")
 
 groundhog::groundhog.library(pkg = pkgs,
                              date = "2024-08-01")
@@ -69,6 +69,251 @@ The `figure C.1a` displays the estimators $\beta_{treat}$ and $\theta_{treat}$. 
 In `figure C.1a`, we pool across the different information treatments (interval, best guess, both) and only consider the heterogeneous effect of contradiction vs. confirmation. _treat_ refers to contradiction while confirmation is used as the baseline.
 
 In `figure C.1b and C.1c`, we test the heterogeneous effects of the different information treatments (interval, best guess, both) separately for confirmation and contradiction treatment arms. The best guess information treatment serves as the baseline and _treat_ refers to the information treatments interval or both.
+
+## Works:
+
+```{r}
+data[, `:=`(
+  female_con  = as.integer(female == 1 & treated == 1 & surprise == 1),
+  female_both = as.integer(female == 1 & treated == 1 & communication == "both"),
+  female_int  = as.integer(female == 1 & treated == 1 & communication == "interval"),
+  
+  high_accuracy_con  = as.integer(high_accuracy == 1 & treated == 1 & surprise == 1),
+  high_accuracy_both = as.integer(high_accuracy == 1 & treated == 1 & communication == "both"),
+  high_accuracy_int  = as.integer(high_accuracy == 1 & treated == 1 & communication == "interval"),
+  
+  high_credibility_con  = as.integer(high_credibility == 1 & treated == 1 & surprise == 1),
+  high_credibility_both = as.integer(high_credibility == 1 & treated == 1 & communication == "both"),
+  high_credibility_int  = as.integer(high_credibility == 1 & treated == 1 & communication == "interval"),
+  
+  high_usage_con  = as.integer(high_usage == 1 & treated == 1 & surprise == 1),
+  high_usage_both = as.integer(high_usage == 1 & treated == 1 & communication == "both"),
+  high_usage_int  = as.integer(high_usage == 1 & treated == 1 & communication == "interval"),
+  
+  high_temperature_con  = as.integer(high_temperature == 1 & treated == 1 & surprise == 1),
+  high_temperature_both = as.integer(high_temperature == 1 & treated == 1 & communication == "both"),
+  high_temperature_int  = as.integer(high_temperature == 1 & treated == 1 & communication == "interval"),
+  
+  high_education_con  = as.integer(high_education == 1 & treated == 1 & surprise == 1),
+  high_education_both = as.integer(high_education == 1 & treated == 1 & communication == "both"),
+  high_education_int  = as.integer(high_education == 1 & treated == 1 & communication == "interval")
+)]
+```
+
+```{r}
+data[, treatment := paste(ifelse(test = surprise, yes = "contr", no = "conf"),
+                          communication, sep = " ")]
+```
+
+```{r covariates_and_DVs}
+covariates_dem <- c("age_35_52",
+            "age_53_plus",
+            "female", 
+            "high_education",
+            "high_income",
+            "married",
+            "parentship")
+
+covariates_all <- c(covariates_dem,
+                    "high_temperature",
+                    "high_usage",
+                    "high_general_risk",
+                    "high_weather_risk",
+                    "high_accuracy",
+                    "high_credibility")
+
+covariates_list <- list(NULL, covariates_dem, covariates_all)
+
+DVs <- c("a", "b")
+IVs <- c("female", "high_accuracy", "high_credibility", "high_usage", "high_temperature", "high_education")
+
+```
+
+```{r function_create_models}
+
+# Define a function to create the list of models
+create_models <- function(responses, covariates_list, IV = "female") {
+  models <- list()
+  
+  for (response in responses) {
+    for (covariates in covariates_list) {
+      # Use glue to correctly format the formula components
+      formula_terms <- c(
+        glue("{IV}_con"),
+        glue("{IV}*treated"),
+        glue("{IV}*surprise"),
+        glue("{IV}")
+      )
+      
+      # Base formula terms
+      base_formula <- c("surprise*treated", formula_terms)
+      
+      # Append covariates if provided
+      if (!is.null(covariates)) {
+        formula_terms <- c(base_formula, covariates)
+      } else {
+        formula_terms <- base_formula
+      }
+      
+      # Create the formula
+      formula <- reformulate(formula_terms, response = response)
+      
+      # Define the variables you want to extract from the model
+      vars <- c(glue("surpriseTRUE:treatedTRUE"), glue("{IV}_con"))
+      
+      # Add the formula and vars to the list of models
+      models <- append(models, list(list(formula = formula, 
+                                         vars = vars, 
+                                         response = response, 
+                                         covariates = covariates, 
+                                         IV = IV)))
+    }
+  }
+  
+  return(models)
+}
+```
+
+
+```{r function_estimate_models}
+# Function to run regression and extract coefficients
+run_regression <- function(formula,
+                           subset, subset_name,
+                           vars, covariates, IV, response) {
+  
+  # Run the linear model
+  model <- lm(formula, data = subset)
+  
+  # Get the confidence intervals for the specified variables
+  coefs <- coefci(model, 
+                  parm = vars, 
+                  vcov = vcovCL(model, cluster = subset$participant.label, type = "HC1"), 
+                  level = 0.95)
+  
+  # Extract coefficient estimates
+  estimates <- model$coefficients[vars]
+  
+  # Create the result table with additional columns for covariates, IV, and response
+  result <- data.table(
+    variable = vars,
+    estimate = estimates,
+    conf.low = coefs[, 1],
+    conf.high = coefs[, 2],
+    covariates = ifelse(test = is.null(covariates), yes = 0, no = length(covariates)),
+    IV = IV,
+    response = response,
+    subset = subset_name
+  )
+  
+  return(result)
+}
+```
+
+```{r function_calls}
+
+models <- create_models(DVs, covariates_list, IV = "high_credibility")
+
+# Run regressions and combine results
+results <- rbindlist(lapply(models, 
+                            function(model) {
+                              run_regression(formula = as.formula(model$formula), 
+                                             subset = data, 
+                                             subset_name = "full",
+                                             vars = model$vars,
+                                             covariates = model$covariates,
+                                             IV = model$IV,
+                                             response = model$response)
+                            }
+                            )
+                     )
+
+results %>% kable()
+```
+
+
+```{r loop}
+heterogeneity_full_list <- list()
+
+for(iv in IVs){
+  models <- create_models(DVs, covariates_list, IV = iv)
+
+  # Run regressions and combine results
+  results <- rbindlist(lapply(models, 
+                              function(model) {
+                                run_regression(formula = as.formula(model$formula), 
+                                               subset = data, 
+                                               subset_name = "full",
+                                               vars = model$vars,
+                                               covariates = model$covariates,
+                                               IV = model$IV,
+                                               response = model$response)
+                              }
+                              )
+                       )
+  heterogeneity_full_list[[length(heterogeneity_full_list) + 1]] <- results
+}
+
+heterogeneity_full <- rbindlist(l = heterogeneity_full_list)
+```
+
+```{r}
+heterogeneity_full[, 
+                   var_name := paste0(response, 
+                                      " (", 
+                                      ifelse(test = variable == "surpriseTRUE:treatedTRUE", 
+                                             yes = paste0("not ", IV), 
+                                             no = paste0(IV, " DDD")),
+                                      ")")]
+
+heterogeneity_full[covariates == 0,
+                   controls := "1.) none"]
+heterogeneity_full[covariates == 7,
+                   controls := "2.) demographic"]
+heterogeneity_full[covariates == 13,
+                   controls := "3.) demographic + further"]
+heterogeneity_full[, controls := factor(controls, 
+                                        levels = c("3.) demographic + further",
+                                                   "2.) demographic",
+                                                   "1.) none"))]
+```
+
+```{r}
+#| label: fig-C1a
+#| fig-cap: "Heterogeneous treatment effects of regression equation (1) with dependent variables b and a. Estimators with 95% confidence intervals. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)."
+
+
+# Order the y_label factor levels
+# y_order <- c("a (not female)","a (female DDD)", "b (not female)", "b (female DDD)","a (less accurate)","a (accurate DDD)", "b (less accurate)", "b (accurate DDD)","a (less credible)","a (credible DDD)", "b (less credible)", "b (credible DDD)","a (less forecast usage)","a (forecast usage DDD)", "b (less forecast usage)", "b (forecast usage DDD)","a (lower temperature)","a (temperature DDD)", "b (lower temperature)", "b (temperature DDD)","a (lower education)","a (education DDD)", "b (lower education)", "b (education DDD)")
+# 
+# heterogeneity_full[, y_label := factor(y_order, levels = rev(y_order))]
+
+# Create the plot
+ggplot(data = heterogeneity_full, 
+       mapping = aes(y = var_name, 
+                     x = estimate, 
+                     xmin = conf.low, 
+                     xmax = conf.high, 
+                     shape = controls)) +
+  geom_pointrange(position = position_dodge(width = 0.4), fatten = 5, alpha = 0.8) +
+  geom_vline(xintercept = 0, color = "red", alpha = 0.2) +
+  labs(title = "(a) Effect of contradiction (relative to confirmation).",
+       y = "Ambiguity Index", 
+       x = "Estimate", 
+       shape = "Control variables") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(face = "bold", size = 12),
+    legend.background = element_rect(fill = "white", size = 4, colour = "white"),
+    axis.ticks = element_line(colour = "grey90", size = 0.1),
+    panel.grid.major = element_line(colour = "grey90", size = 0.07),
+    panel.grid.minor = element_blank(),
+    legend.key.size = unit(1, "lines"),
+    legend.box = 'horizontal',
+    legend.position = "top"
+  )
+```
+
+
 
 
 ## Session Info {-}
