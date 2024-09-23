@@ -1,8 +1,6 @@
 # Appendix C
 
-## Setup
-
-### Install Packages
+## Install Packages
 
 We install the following packages using the `groundhog` package manager to increase computational reproducibility.
 
@@ -12,10 +10,10 @@ We install the following packages using the `groundhog` package manager to incre
 options(repos = c(CRAN = "https://cran.r-project.org")) 
 
 if (!requireNamespace("groundhog", quietly = TRUE)) {
-    install.packages("groundhog")
+  install.packages("groundhog")
 }
 
-pkgs <- c("magrittr", "data.table", "stringr", "Rmisc", "ggplot2", "lmtest", "sandwich", "glue", "knitr")
+pkgs <- c("ggplot2", "lmtest", "sandwich")
 
 groundhog::groundhog.library(pkg = pkgs,
                              date = "2024-08-01")
@@ -23,36 +21,7 @@ groundhog::groundhog.library(pkg = pkgs,
 rm(pkgs)
 ```
 
-### Read Data
-
-```{r read_data}
-data      <- readRDS(file="../data/processed/full.Rda")
-timeSpent <- data.table::fread(file = "../data/raw/PageTimes-2021-09-15.csv")
-raw       <- data.table::fread(file="../data/raw/all_apps_wide_2021-09-15.csv")
-```
-
-### Design
-
-We define some design features in the following:
-
-```{r design_features}
-
-colors <- c("#F3B05C", "#1E4A75", "#65B5C0", "#AD5E21")
-
-layout <- theme(panel.background = element_rect(fill = "white"),
-                legend.key = element_rect(fill = "white"),
-                panel.grid.major.y = element_line(colour = "grey", 
-                                                  linewidth = 0.25),
-                axis.ticks.y = element_blank(),
-                panel.grid.major.x = element_blank(),
-                axis.line.x.bottom = element_line(colour = "#000000", 
-                                                  linewidth = 0.5),
-                axis.line.y.left = element_blank(),
-                plot.title = element_text(size = rel(1))
-)
-
-```
-
+## Figure C.1
 
 We examine the heterogeneous effects by estimating a triple interaction effect regression:
 
@@ -70,9 +39,20 @@ In `figure C.1a`, we pool across the different information treatments (interval,
 
 In `figure C.1b and C.1c`, we test the heterogeneous effects of the different information treatments (interval, best guess, both) separately for confirmation and contradiction treatment arms. The best guess information treatment serves as the baseline and _treat_ refers to the information treatments interval or both.
 
+To recreate the Figure, we source an R script, which you can find [here]().
+
+```{r}
+source(file = "06-Appendix-C-fig-1.R", echo = FALSE)
+```
+
+The script generates the corresponding ggplots and saves them as PDF files in `../rendered_documents/pdf/`.
+
+
+<!--
 ## Works:
 
 ```{r}
+#| eval: false
 data[, `:=`(
   female_con  = as.integer(female == 1 & treated == 1 & surprise == 1),
   female_both = as.integer(female == 1 & treated == 1 & communication == "both"),
@@ -101,18 +81,20 @@ data[, `:=`(
 ```
 
 ```{r}
+#| eval: false
 data[, treatment := paste(ifelse(test = surprise, yes = "contr", no = "conf"),
                           communication, sep = " ")]
 ```
 
 ```{r covariates_and_DVs}
+#| eval: false
 covariates_dem <- c("age_35_52",
-            "age_53_plus",
-            "female", 
-            "high_education",
-            "high_income",
-            "married",
-            "parentship")
+                    "age_53_plus",
+                    "female", 
+                    "high_education",
+                    "high_income",
+                    "married",
+                    "parentship")
 
 covariates_all <- c(covariates_dem,
                     "high_temperature",
@@ -130,7 +112,8 @@ IVs <- c("female", "high_accuracy", "high_credibility", "high_usage", "high_temp
 ```
 
 ```{r function_create_models}
-
+#| eval: false
+#| 
 # Define a function to create the list of models
 create_models <- function(responses, covariates_list, IV = "female") {
   models <- list()
@@ -176,6 +159,7 @@ create_models <- function(responses, covariates_list, IV = "female") {
 
 
 ```{r function_estimate_models}
+#| eval: false
 # Function to run regression and extract coefficients
 run_regression <- function(formula,
                            subset, subset_name,
@@ -210,7 +194,7 @@ run_regression <- function(formula,
 ```
 
 ```{r function_calls}
-
+#| eval: false
 models <- create_models(DVs, covariates_list, IV = "high_credibility")
 
 # Run regressions and combine results
@@ -224,19 +208,20 @@ results <- rbindlist(lapply(models,
                                              IV = model$IV,
                                              response = model$response)
                             }
-                            )
-                     )
+)
+)
 
 results %>% kable()
 ```
 
 
 ```{r loop}
+#| eval: false
 heterogeneity_full_list <- list()
 
 for(iv in IVs){
   models <- create_models(DVs, covariates_list, IV = iv)
-
+  
   # Run regressions and combine results
   results <- rbindlist(lapply(models, 
                               function(model) {
@@ -248,8 +233,8 @@ for(iv in IVs){
                                                IV = model$IV,
                                                response = model$response)
                               }
-                              )
-                       )
+  )
+  )
   heterogeneity_full_list[[length(heterogeneity_full_list) + 1]] <- results
 }
 
@@ -257,6 +242,7 @@ heterogeneity_full <- rbindlist(l = heterogeneity_full_list)
 ```
 
 ```{r}
+#| eval: false
 heterogeneity_full[, 
                    var_name := paste0(response, 
                                       " (", 
@@ -275,19 +261,32 @@ heterogeneity_full[, controls := factor(controls,
                                         levels = c("3.) demographic + further",
                                                    "2.) demographic",
                                                    "1.) none"))]
+
+y_order <- c(
+  "b (education DDD)", "b (lower education)",
+  "a (education DDD)", "a (lower education)",
+  "b (temperature DDD)", "b (lower temperature)",
+  "a (temperature DDD)", "a (lower temperature)",
+  "b (forecast usage DDD)", "b (less forecast usage)",
+  "a (forecast usage DDD)", "a (less forecast usage)",
+  "b (credible DDD)", "b (less credible)",
+  "a (credible DDD)", "a (less credible)",
+  "b (accurate DDD)", "b (less accurate)",
+  "a (accurate DDD)", "a (less accurate)",
+  "b (female DDD)", "b (not female)",
+  "a (female DDD)", "a (not female)"
+)
+
+# Update var_name to factor with the correct order
+# heterogeneity_full[, var_name := factor(var_name, levels = rev(y_order))]
 ```
 
 ```{r}
+#| eval: false
 #| label: fig-C1a
 #| fig-cap: "Heterogeneous treatment effects of regression equation (1) with dependent variables b and a. Estimators with 95% confidence intervals. The underlying standard errors (“HC1”) are clustered at the individual level and estimated with the R package sandwich (Zeileis, 2004; Zeileis et al., 2020)."
 
 
-# Order the y_label factor levels
-# y_order <- c("a (not female)","a (female DDD)", "b (not female)", "b (female DDD)","a (less accurate)","a (accurate DDD)", "b (less accurate)", "b (accurate DDD)","a (less credible)","a (credible DDD)", "b (less credible)", "b (credible DDD)","a (less forecast usage)","a (forecast usage DDD)", "b (less forecast usage)", "b (forecast usage DDD)","a (lower temperature)","a (temperature DDD)", "b (lower temperature)", "b (temperature DDD)","a (lower education)","a (education DDD)", "b (lower education)", "b (education DDD)")
-# 
-# heterogeneity_full[, y_label := factor(y_order, levels = rev(y_order))]
-
-# Create the plot
 ggplot(data = heterogeneity_full, 
        mapping = aes(y = var_name, 
                      x = estimate, 
@@ -296,6 +295,7 @@ ggplot(data = heterogeneity_full,
                      shape = controls)) +
   geom_pointrange(position = position_dodge(width = 0.4), fatten = 5, alpha = 0.8) +
   geom_vline(xintercept = 0, color = "red", alpha = 0.2) +
+  scale_shape_manual(values = c("1.) none" = 15, "2.) demographic" = 17, "3.) demographic + further" = 16)) +
   labs(title = "(a) Effect of contradiction (relative to confirmation).",
        y = "Ambiguity Index", 
        x = "Estimate", 
@@ -311,8 +311,10 @@ ggplot(data = heterogeneity_full,
     legend.box = 'horizontal',
     legend.position = "top"
   )
+
 ```
 
+-->
 
 
 

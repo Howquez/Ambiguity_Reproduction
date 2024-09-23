@@ -239,6 +239,7 @@ self_reports[, age_35_52   := ifelse(age >= 35 & age <= 52, yes = TRUE, no = FAL
 
 ```{r hard_code_gender}
 self_reports[, female := ifelse(test = gender == "female", yes = TRUE, no = FALSE)]
+self_reports[gender == "not specified", female := NA]
 ```
 
 ```{r hard_code_education}

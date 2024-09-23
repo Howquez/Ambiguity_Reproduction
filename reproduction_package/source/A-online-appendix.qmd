@@ -28,7 +28,7 @@ rm(pkgs)
 ```{r read_data}
 data      <- readRDS(file="../data/processed/full.Rda")
 timeSpent <- data.table::fread(file = "../data/raw/PageTimes-2021-09-15.csv")
-raw       <- data.table::fread(file="../data/raw/all_apps_wide_2021-09-15.csv")
+raw       <- data.table::fread(file = "../data/raw/all_apps_wide_2021-09-15-without-ZIP.csv")
 ```
 
 ### Design
