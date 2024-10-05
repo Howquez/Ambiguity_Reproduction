@@ -2,6 +2,8 @@ project:
   type: book
   output-dir: "../rendered_documents"
 
+# git subtree push --prefix=reproduction_package/rendered_documents origin gh-pages
+
 book:
   output-file: "Ambiguity attitudes and surprises: Computational reproduction"
 

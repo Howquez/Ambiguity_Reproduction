@@ -20,4 +20,30 @@ The following is the BibTeX entry for the key reference, which can be used to ci
 ```
 
 
+## R Version Disclaimer
+
+This reproduction package was developed using R version 4.4.1 (2024-06-14). To ensure the most accurate replication of results, it is recommended to use this specific R version.
+If you are using a different R version, you have two options:
+
+1. Install R version 4.4.1 (2024-06-14) to match the original environment.
+2. Adjust the date in the `groundhog.library()` function call (at the beginning of every script) to find a date that is compatible with your R version. The current code uses the following setup:
+
+```{r}
+#| echo: true
+#| eval: false
+
+options(repos = c(CRAN = "https://cran.r-project.org")) 
+if (!requireNamespace("groundhog", quietly = TRUE)) {
+    install.packages("groundhog")
+}
+pkgs <- c("magrittr", "data.table", "stringr", "lubridate", "glue", "knitr")
+groundhog::groundhog.library(pkg = pkgs,
+                             date = "2024-08-01")
+rm(pkgs)
+```
+
+If you need to adjust the date, modify the date parameter in the `groundhog.library()` function. Choose a date that is compatible with your R version and ensures all required packages are available.
+
+Please note that using a different R version or package versions may potentially lead to slight differences in results. If you encounter any issues or discrepancies, consider installing the recommended R version for the most accurate replication.
+
 ## References {-}

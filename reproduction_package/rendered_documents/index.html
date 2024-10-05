@@ -9,7 +9,7 @@
 <meta name="author" content="Aljoscha Minnich">
 <meta name="author" content="Hauke Roggenkamp">
 <meta name="author" content="Andreas Lange">
-<meta name="dcterms.date" content="2024-09-23">
+<meta name="dcterms.date" content="2024-10-05">
 
 <title>Ambiguity attitudes and surprises</title>
 <style>
@@ -4136,6 +4136,7 @@ vertical-align: -.125em;
   <ul>
   <li><a href="#preface" id="toc-preface" class="nav-link active" data-scroll-target="#preface">Preface</a>
   <ul class="collapse">
+  <li><a href="#r-version-disclaimer" id="toc-r-version-disclaimer" class="nav-link" data-scroll-target="#r-version-disclaimer">R Version Disclaimer</a></li>
   <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul></li>
   </ul>
@@ -4196,7 +4197,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">September 23, 2024</p>
+      <p class="date">October 5, 2024</p>
     </div>
   </div>
     
@@ -4220,6 +4221,26 @@ vertical-align: -.125em;
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">doi</span> = {10.2139/ssrn.4646369},</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">url</span> = {https://ssrn.com/abstract=4646369}</span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="r-version-disclaimer" class="level2">
+<h2 class="anchored" data-anchor-id="r-version-disclaimer">R Version Disclaimer</h2>
+<p>This reproduction package was developed using R version 4.4.1 (2024-06-14). To ensure the most accurate replication of results, it is recommended to use this specific R version. If you are using a different R version, you have two options:</p>
+<ol type="1">
+<li>Install R version 4.4.1 (2024-06-14) to match the original environment.</li>
+<li>Adjust the date in the <code>groundhog.library()</code> function call (at the beginning of every script) to find a date that is compatible with your R version. The current code uses the following setup:</li>
+</ol>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">repos =</span> <span class="fu">c</span>(<span class="at">CRAN =</span> <span class="st">"https://cran.r-project.org"</span>)) </span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">requireNamespace</span>(<span class="st">"groundhog"</span>, <span class="at">quietly =</span> <span class="cn">TRUE</span>)) {</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">install.packages</span>(<span class="st">"groundhog"</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>pkgs <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"magrittr"</span>, <span class="st">"data.table"</span>, <span class="st">"stringr"</span>, <span class="st">"lubridate"</span>, <span class="st">"glue"</span>, <span class="st">"knitr"</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>groundhog<span class="sc">::</span><span class="fu">groundhog.library</span>(<span class="at">pkg =</span> pkgs,</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>                             <span class="at">date =</span> <span class="st">"2024-08-01"</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(pkgs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>If you need to adjust the date, modify the date parameter in the <code>groundhog.library()</code> function. Choose a date that is compatible with your R version and ensures all required packages are available.</p>
+<p>Please note that using a different R version or package versions may potentially lead to slight differences in results. If you encounter any issues or discrepancies, consider installing the recommended R version for the most accurate replication.</p>
+</section>
 <section id="references" class="level2 unnumbered">
 <h2 class="unnumbered anchored" data-anchor-id="references">References</h2>
 
