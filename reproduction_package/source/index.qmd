@@ -7,15 +7,17 @@ Beneath each script, we print its session information, which provides a record o
 The following is the BibTeX entry for the key reference, which can be used to cite our paper in future research or to replicate the results:
 
 ```bibtex
-@article{MinnichEtAl_2023,
-  title = {Ambiguity Attitudes and Surprises: Experimental Evidence on Communicating New Information within a Large Population Sample},
-  author = {Minnich, Aljoscha and Roggenkamp, Hauke and Lange, Andreas},
-  year = {2023},
-  type = {CESifo Working Paper},
-  number = {10783},
-  institution = {CESifo},
-  doi = {10.2139/ssrn.4646369},
-  url = {https://ssrn.com/abstract=4646369}
+@article{MinnichEtAl_2024,
+  title = {Ambiguity attitudes and surprises: Experimental evidence on communicating new     information within a large population sample},
+  journal = {Journal of Economic Behavior & Organization},
+  volume = {228},
+  pages = {106778},
+  year = {2024},
+  issn = {0167-2681},
+  doi = {10.1016/j.jebo.2024.106778},
+  url = {https://www.sciencedirect.com/science/article/pii/S0167268124003925},
+  author = {Aljoscha Minnich and Hauke Roggenkamp and Andreas Lange},
+  keywords = {Ambiguity attitude, Belief updating, Expert forecasts, Survey experiment}
 }
 ```
 
