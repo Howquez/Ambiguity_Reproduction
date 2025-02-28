@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this reproduction package, please cite it as below."
+authors:
+  - family-names: "Minnich"
+    given-names: "Aljoscha"
+  - family-names: "Roggenkamp"
+    given-names: "Hauke"
+  - family-names: "Lange"
+    given-names: "Andreas"
+title: "Reproduction Package for Minnich et al. (2024)"
+version: 1.0.0
+date-released: 2024
+repository-code: "https://github.com/Howquez/Ambiguity_Reproduction"
+url: "https://github.com/Howquez/Ambiguity_Reproduction"
+type: "software"
+abstract: "Reproducibility Package for 'Ambiguity attitudes and surprises: experimental evidence on communicating new information within a large population sample'"
+keywords:
+  - reproducibility
+  - experimental-economics
+  - ambiguity
+license: MIT
